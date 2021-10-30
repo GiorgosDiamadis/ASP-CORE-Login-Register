@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
+using Core.Flash;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,14 +23,16 @@ namespace WebApplication.Controllers
         private readonly IConfiguration _config;
         private readonly ITokenService _tokenService;
         private readonly MySqlContext _mySqlContext;
+        private readonly IFlasher _flasher;
 
         public UserController(WebApplicationContext context, IConfiguration config, ITokenService tokenService,
-            MySqlContext mySqlContext)
+            MySqlContext mySqlContext,IFlasher flasher)
         {
             _context = context;
             _config = config;
             _tokenService = tokenService;
             _mySqlContext = mySqlContext;
+            _flasher = flasher;
         }
 
 
@@ -43,21 +46,21 @@ namespace WebApplication.Controllers
         public async Task<IActionResult> LogIn([Bind("Name,Password")] UserLoginDTO userLoginDto)
         {
             UserDao userDao = new UserDao(_mySqlContext);
-            User dbUser = await userDao.LogIn(userLoginDto.Name, userLoginDto.Password);
-            if (dbUser != null)
+            Messenger message = await userDao.LogIn(userLoginDto.Name, userLoginDto.Password);
+            if (message.IsError)
             {
-                UserService.Authenticate(_config, _tokenService, HttpContext, dbUser);
-
-                return RedirectToAction("Index", "Home");
+                _flasher.Flash(Types.Danger,message.Message,true);
+                return View();
             }
             else
             {
-                return View();
+                User dbUser = message.GetData<User>();
+                UserService.Authenticate(_config, _tokenService, HttpContext, dbUser);
+                _flasher.Flash(Types.Success,message.Message,true);
+                return RedirectToAction("Index", "Home");
             }
+            
         }
-
-
-        // [Route("/malakas")]
         public async Task<IActionResult> Register()
         {
             return View();
@@ -68,9 +71,12 @@ namespace WebApplication.Controllers
         public async Task<IActionResult> ConfirmEmail([FromQuery] string token)
         {
             UserDao userDao = new UserDao(_mySqlContext);
-            bool hasConfirmed = await userDao.ConfirmEmail(token);
+            Messenger messenger = await userDao.ConfirmEmail(token);
 
-
+            if(messenger.IsError)
+                _flasher.Flash(Types.Danger,messenger.Message,true);
+            else
+                _flasher.Flash(Types.Success,messenger.Message,true);
             return RedirectToAction("LogIn");
         }
 
@@ -78,15 +84,17 @@ namespace WebApplication.Controllers
         public async Task<IActionResult> Register([Bind("PhoneNumber,Email,Role,Name,Password")] User user)
         {
             UserDao userDao = new UserDao(_mySqlContext);
-            bool hasInserted = await userDao.Register(user);
+            Messenger result = await userDao.Register(user);
 
-            if (hasInserted)
+            if (result.IsError)
             {
-                return RedirectToAction("LogIn");
+                _flasher.Flash(Types.Danger,result.Message);
+                return RedirectToAction("Register");
             }
             else
             {
-                return View();
+                _flasher.Flash(Types.Success,result.Message);
+                return RedirectToAction("LogIn");
             }
         }
 

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using WebApplication.Models;
 using WebApplication.Models.Interfaces;
 
 namespace WebApplication.Database.DatabaseAccessObjects.Interfaces
@@ -10,7 +11,7 @@ namespace WebApplication.Database.DatabaseAccessObjects.Interfaces
         IEnumerable<T> GetAll(Predicate<T> condition = null);
         void CreateTableIfNotExists();
         bool Remove(T data);
-        Task<bool> Register(T user);
+        Task<Messenger> Register(T user);
         Task<T> Search(string name = null, string id = null);
         T Edit(T data);
     }

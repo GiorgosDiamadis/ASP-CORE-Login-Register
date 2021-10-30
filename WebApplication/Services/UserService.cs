@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
@@ -10,29 +11,48 @@ namespace WebApplication.Services
 {
     public static class UserService
     {
-        public static void Authenticate(IConfiguration configuration, ITokenService tokenService,HttpContext context, User dbUser)
+        private static string currentToken;
+
+        public static void Authenticate(IConfiguration configuration, ITokenService tokenService, HttpContext context,
+            User dbUser)
         {
-            string token = tokenService.BuildToken(configuration["JWT:Key"],
+            currentToken = tokenService.BuildToken(configuration["JWT:Key"],
                 configuration["JWT:Issuer"], dbUser);
 
-            if (token != null)
+            if (currentToken != null)
             {
-                context.Session.SetString("Token", token);
+                context.Session.SetString("Token", currentToken);
             }
         }
-        public static string GetName(string token, ITokenService tokenService)
+
+        public static string GetName(ITokenService tokenService)
         {
-            return tokenService.DecodeToken(token).Claims.FirstOrDefault(cl => cl is {Type: ClaimTypes.Name})?.Value;
+            return tokenService.DecodeToken(currentToken)?.Claims.FirstOrDefault(cl => cl is {Type: ClaimTypes.Name})
+                ?.Value;
         }
 
-        public static string GetRole(string token, ITokenService tokenService)
+        public static string GetRole(ITokenService tokenService)
         {
-            return tokenService.DecodeToken(token).Claims.FirstOrDefault(cl => cl is {Type: ClaimTypes.Role})?.Value;
+            return tokenService.DecodeToken(currentToken).Claims.FirstOrDefault(cl => cl is {Type: ClaimTypes.Role})
+                ?.Value;
         }
 
-        public static string GetId(string token, ITokenService tokenService)
+        public static string GetPhone(ITokenService tokenService)
         {
-            return tokenService.DecodeToken(token).Claims.FirstOrDefault(cl => cl is {Type: ClaimTypes.NameIdentifier})
+            return tokenService.DecodeToken(currentToken).Claims.FirstOrDefault(cl => cl is {Type: ClaimTypes.HomePhone})
+                ?.Value;
+        }
+        
+        public static string GetEmail(ITokenService tokenService)
+        {
+            return tokenService.DecodeToken(currentToken).Claims.FirstOrDefault(cl => cl is {Type: ClaimTypes.Email})
+                ?.Value;
+        }
+        
+        public static string GetId(ITokenService tokenService)
+        {
+            return tokenService.DecodeToken(currentToken).Claims
+                .FirstOrDefault(cl => cl is {Type: ClaimTypes.NameIdentifier})
                 ?.Value;
         }
     }

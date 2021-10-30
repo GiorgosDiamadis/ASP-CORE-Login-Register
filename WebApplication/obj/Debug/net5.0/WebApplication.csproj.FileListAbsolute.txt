@@ -175,3 +175,6 @@
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/bin/Debug/net5.0/FluentValidation.DependencyInjectionExtensions.dll
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/obj/Debug/net5.0/WebApplication.MvcApplicationPartsAssemblyInfo.cs
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/bin/Debug/net5.0/RestSharp.dll
+/home/giorgos/Desktop/Projects/WebApplication/WebApplication/bin/Debug/net5.0/Core.Flash.dll
+/home/giorgos/Desktop/Projects/WebApplication/WebApplication/bin/Debug/net5.0/Microsoft.AspNetCore.JsonPatch.dll
+/home/giorgos/Desktop/Projects/WebApplication/WebApplication/bin/Debug/net5.0/Newtonsoft.Json.Bson.dll

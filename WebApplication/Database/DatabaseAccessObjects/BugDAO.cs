@@ -30,7 +30,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             throw new NotImplementedException();
         }
 
-        public Task<bool> Register(Bug user)
+        public Task<Messenger> Register(Bug user)
         {
             throw new NotImplementedException();
         }

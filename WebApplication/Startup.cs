@@ -73,7 +73,7 @@ namespace WebApplication
             services.AddRazorPages();
 
 
-            services.AddMvc(options=>
+            services.AddFlashes().AddMvc(options=>
             {
                 options.Filters.Add(new ValidateModelStateFilter());
             });

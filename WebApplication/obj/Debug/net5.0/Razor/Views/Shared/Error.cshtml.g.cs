@@ -26,8 +26,15 @@ using WebApplication.Models;
 #line default
 #line hidden
 #nullable disable
+#nullable restore
+#line 3 "/home/giorgos/Desktop/Projects/WebApplication/WebApplication/Views/_ViewImports.cshtml"
+using Core.Flash;
+
+#line default
+#line hidden
+#nullable disable
     [global::Microsoft.AspNetCore.Razor.Hosting.RazorSourceChecksumAttribute(@"SHA1", @"dba2be46a2b24b628511151a3e1df55771fcca1d", @"/Views/Shared/Error.cshtml")]
-    [global::Microsoft.AspNetCore.Razor.Hosting.RazorSourceChecksumAttribute(@"SHA1", @"bbd9cff262ad47075cc1437ee4e7e88f1e7358b0", @"/Views/_ViewImports.cshtml")]
+    [global::Microsoft.AspNetCore.Razor.Hosting.RazorSourceChecksumAttribute(@"SHA1", @"fb2aa1cac99c7400e17d0d0360749b37d000ebae", @"/Views/_ViewImports.cshtml")]
     public class Views_Shared_Error : global::Microsoft.AspNetCore.Mvc.Razor.RazorPage<ErrorViewModel>
     {
         #pragma warning disable 1998

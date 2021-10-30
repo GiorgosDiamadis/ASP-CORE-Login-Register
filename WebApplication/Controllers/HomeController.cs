@@ -5,6 +5,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Core.Flash;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -23,11 +24,16 @@ namespace WebApplication.Controllers
     {
         private readonly ILogger<HomeController> _logger;
         private readonly IConfiguration _config;
+        private readonly ITokenService _tokenService;
+        private readonly IFlasher _flasher;
 
-        public HomeController(ILogger<HomeController> logger, IConfiguration config)
+        public HomeController(ILogger<HomeController> logger, IConfiguration config, ITokenService tokenService,
+            IFlasher flasher)
         {
             _logger = logger;
             _config = config;
+            _tokenService = tokenService;
+            _flasher = flasher;
         }
 
         public IActionResult Index()

@@ -24,7 +24,14 @@ namespace WebApplication.Services
         public JwtSecurityToken DecodeToken(string token)
         {
             var handler = new JwtSecurityTokenHandler();
-            return handler.ReadJwtToken(token);
+            if (!string.IsNullOrEmpty(token))
+            {
+                return handler.ReadJwtToken(token);
+            }
+            else
+            {
+                return null;
+            }
         }
 
         public string BuildToken(string key, string issuer, User user)
@@ -33,6 +40,8 @@ namespace WebApplication.Services
             {
                 new Claim(ClaimTypes.Name, user.Name),
                 new Claim(ClaimTypes.Role, user.Role.ToString()),
+                new Claim(ClaimTypes.Email,user.Email),
+                new Claim(ClaimTypes.HomePhone,user.PhoneNumber),
                 new Claim(ClaimTypes.NameIdentifier,
                     user.Id)
             };

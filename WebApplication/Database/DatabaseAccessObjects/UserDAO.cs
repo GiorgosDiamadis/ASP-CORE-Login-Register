@@ -53,7 +53,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             await connection.CloseAsync();
         }
 
-        public async Task<bool> Register(User user)
+        public async Task<Messenger> Register(User user)
         {
             string[] hashSalt = HashPassword(user.Password);
             string userId = Guid.NewGuid().ToString();
@@ -82,16 +82,18 @@ namespace WebApplication.Database.DatabaseAccessObjects
                 await connection.CloseAsync();
                 user.Id = userId;
                 SendConfirmationEmail(user);
-                return true;
+
+                return new Messenger(
+                    "You have been successfully registered. Please confirm your email in order to proceed!", false);
             }
             catch (Exception e)
             {
                 await connection.CloseAsync();
-                return false;
+                return new Messenger("Username or email already exists.", true);
             }
         }
 
-        public async Task<bool> ConfirmEmail(string token)
+        public async Task<Messenger> ConfirmEmail(string token)
         {
             MySqlConnection connection = _mySqlContext.GetConnection();
             await connection.OpenAsync();
@@ -104,13 +106,14 @@ namespace WebApplication.Database.DatabaseAccessObjects
                 mySqlCommand.Parameters.AddWithValue("@ID", token);
                 await mySqlCommand.ExecuteReaderAsync();
                 await connection.CloseAsync();
-                return true;
+                return new Messenger("Your email has been confirmed! You can now log in to your account.", false);
             }
             catch (Exception e)
             {
                 await connection.CloseAsync();
                 Console.WriteLine(e);
-                return false;
+                return new Messenger("Something went wrong during the confirmation process. Please try again later",
+                    true);
             }
         }
 
@@ -136,7 +139,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             return client.Execute(request);
         }
 
-        public async Task<User> LogIn(string name, string enteredPassword)
+        public async Task<Messenger> LogIn(string name, string enteredPassword)
         {
             MySqlConnection connection = _mySqlContext.GetConnection();
             await connection.OpenAsync();
@@ -152,7 +155,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
                 string storedSalt = "";
                 string storedHash = "";
                 int hasValidated = 0;
-                Console.WriteLine(dbUser);
+
                 while (reader.Read())
                 {
                     dbUser.Name = reader.GetString(reader.GetOrdinal("user_name"));
@@ -172,11 +175,14 @@ namespace WebApplication.Database.DatabaseAccessObjects
 
                 if (CheckValidPassword(enteredPassword, storedSalt, storedHash) && hasValidated == 1)
                 {
-                    return dbUser;
+                    Messenger message = new Messenger($"Welcome {dbUser.Name}", false);
+                    message.SetData(dbUser);
+                    return message;
                 }
                 else
                 {
-                    return null;
+                    Messenger messenger = new Messenger("Username or password is incorrect!", true);
+                    return messenger;
                 }
             }
         }
@@ -216,13 +222,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             hashSalt[0] = passwordHashed;
             return hashSalt;
         }
-
-        public bool Remove(User data)
-        {
-            return false;
-        }
-
-
+        
         public async Task<User> Search(string name = null, string id = null)
         {
             MySqlConnection connection = _mySqlContext.GetConnection();
@@ -268,6 +268,11 @@ namespace WebApplication.Database.DatabaseAccessObjects
         public User Edit(User data)
         {
             return null;
+        }
+        
+        public bool Remove(User data)
+        {
+            return false;
         }
     }
 }

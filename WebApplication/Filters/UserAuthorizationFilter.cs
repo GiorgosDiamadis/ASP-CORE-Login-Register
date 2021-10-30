@@ -23,6 +23,7 @@ namespace WebApplication.Filters
             string token = context.HttpContext.Session.GetString("Token");
             if (string.IsNullOrEmpty(token))
             {
+                Console.WriteLine(1);
                 RedirectToLoginPage(context);
                 return;
             }
@@ -30,6 +31,7 @@ namespace WebApplication.Filters
             if (!_tokenService.ValidateToken(_configuration["JWT:Key"], _configuration["JWT:Issuer"],
                 _configuration["JWT:Audience"], token))
             {
+                Console.WriteLine(2);
                 RedirectToLoginPage(context);
                 return;
             }
@@ -37,7 +39,7 @@ namespace WebApplication.Filters
             string id = context.HttpContext.Request.Query["id"];
             if (!string.IsNullOrEmpty(id))
             {
-                if (id != UserService.GetId(token, _tokenService))
+                if (id != UserService.GetId(_tokenService))
                 {
                     // Diplay page for not authorized
                     Console.WriteLine("Not authorized");
@@ -45,7 +47,6 @@ namespace WebApplication.Filters
             }
 
             // Do the same
-            Console.WriteLine(context.ModelState["Id"]);
         }
 
         private static void RedirectToLoginPage(AuthorizationFilterContext context)
