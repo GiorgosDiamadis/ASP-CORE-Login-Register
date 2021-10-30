@@ -38,6 +38,10 @@
         "net5.0": {
           "targetAlias": "net5.0",
           "dependencies": {
+            "Core.Flash": {
+              "target": "Package",
+              "version": "[2.1.1, )"
+            },
             "FluentValidation.AspNetCore": {
               "target": "Package",
               "version": "[10.3.4, )"
@@ -71,6 +75,10 @@
             "MySqlConnector": {
               "target": "Package",
               "version": "[1.3.7, )"
+            },
+            "RestSharp": {
+              "target": "Package",
+              "version": "[106.13.0, )"
             }
           },
           "imports": [

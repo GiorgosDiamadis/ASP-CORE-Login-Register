@@ -34,7 +34,7 @@ namespace WebApplication.Filters
                 return;
             }
 
-            string id = context.HttpContext.Request.Query["Id"];
+            string id = context.HttpContext.Request.Query["id"];
             if (!string.IsNullOrEmpty(id))
             {
                 if (id != UserService.GetId(token, _tokenService))

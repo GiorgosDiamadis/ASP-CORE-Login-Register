@@ -174,3 +174,4 @@
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/bin/Debug/net5.0/FluentValidation.AspNetCore.dll
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/bin/Debug/net5.0/FluentValidation.DependencyInjectionExtensions.dll
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/obj/Debug/net5.0/WebApplication.MvcApplicationPartsAssemblyInfo.cs
+/home/giorgos/Desktop/Projects/WebApplication/WebApplication/bin/Debug/net5.0/RestSharp.dll

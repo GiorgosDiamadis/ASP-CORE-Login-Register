@@ -6,7 +6,7 @@ using WebApplication.Models;
 
 namespace WebApplication.Database.DatabaseAccessObjects
 {
-    public class BugDAO:IDao<Bug>
+    public class BugDAO : IDao<Bug>
     {
         private readonly MySqlContext _mySqlContext;
 
@@ -14,6 +14,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
         {
             this._mySqlContext = mySqlContext;
         }
+
         public IEnumerable<Bug> GetAll(Predicate<Bug> condition = null)
         {
             throw new NotImplementedException();
@@ -34,7 +35,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             throw new NotImplementedException();
         }
 
-        public async Task<Bug> Search(string name)
+        public async Task<Bug> Search(string name = null, string id = null)
         {
             throw new NotImplementedException();
         }

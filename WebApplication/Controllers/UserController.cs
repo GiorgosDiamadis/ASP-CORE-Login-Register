@@ -10,6 +10,7 @@ using WebApplication.Database;
 using WebApplication.Database.DatabaseAccessObjects;
 using WebApplication.Filters;
 using WebApplication.Models;
+using WebApplication.Models.DataTransferObjects;
 using WebApplication.Services;
 using WebApplication.Services.Interfaces;
 
@@ -34,48 +35,59 @@ namespace WebApplication.Controllers
 
         public async Task<IActionResult> LogIn()
         {
+
             return View();
         }
 
         [HttpPost]
-        public async Task<IActionResult> LogIn([Bind("Name,Password")] User user)
+        public async Task<IActionResult> LogIn([Bind("Name,Password")] UserLoginDTO userLoginDto)
         {
             UserDao userDao = new UserDao(_mySqlContext);
-            User dbUser = await userDao.LogIn(user.Name, user.Password);
+            User dbUser = await userDao.LogIn(userLoginDto.Name, userLoginDto.Password);
             if (dbUser != null)
             {
                 UserService.Authenticate(_config, _tokenService, HttpContext, dbUser);
-            }
 
-            return RedirectToAction("Index","Home");
-            // Response.Redirect(Request.Headers["Referer"].ToString());
+                return RedirectToAction("Index", "Home");
+            }
+            else
+            {
+                return View();
+            }
         }
 
 
+        // [Route("/malakas")]
         public async Task<IActionResult> Register()
         {
             return View();
         }
 
+
+        [Route("/confirmEmail")]
+        public async Task<IActionResult> ConfirmEmail([FromQuery] string token)
+        {
+            UserDao userDao = new UserDao(_mySqlContext);
+            bool hasConfirmed = await userDao.ConfirmEmail(token);
+
+
+            return RedirectToAction("LogIn");
+        }
+
         [HttpPost]
-        public async Task<IActionResult> Register([Bind("Role,Name,Password")] User user)
+        public async Task<IActionResult> Register([Bind("PhoneNumber,Email,Role,Name,Password")] User user)
         {
             UserDao userDao = new UserDao(_mySqlContext);
             bool hasInserted = await userDao.Register(user);
 
-            return View();
-        }
-
-        // GET: User/Delete
-        [ServiceFilter(typeof(UserAuthorizationFilter))]
-        public async Task<IActionResult> Delete()
-        {
-            // if (id == null)
-            // {
-            //     return Redirect("http://localhost:5000/Error/ShowError");
-            // }
-
-            return View();
+            if (hasInserted)
+            {
+                return RedirectToAction("LogIn");
+            }
+            else
+            {
+                return View();
+            }
         }
 
         // POST: User/Delete/5

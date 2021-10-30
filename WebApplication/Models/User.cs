@@ -12,13 +12,17 @@ namespace WebApplication.Models
     public class User : IDatabaseModel
     {
         public string Id { get; set; }
-        [Required]
-        public Role Role { get; set; }
+        [Required] public Role Role { get; set; }
 
         [Required] public string Name { get; set; }
 
+        [Required] [Phone] public string PhoneNumber { get; set; }
+
+        [Required] [EmailAddress] public string Email { get; set; }
+
         [Required]
-        [MaxLength(32), MinLength(8)]
+        [MaxLength(32)]
+        [MinLength(8)]
         public string Password { get; set; }
     }
 }

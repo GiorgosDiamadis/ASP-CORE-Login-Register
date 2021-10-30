@@ -11,7 +11,7 @@ namespace WebApplication.Database.DatabaseAccessObjects.Interfaces
         void CreateTableIfNotExists();
         bool Remove(T data);
         Task<bool> Register(T user);
-        Task<T> Search(string name);
+        Task<T> Search(string name = null, string id = null);
         T Edit(T data);
     }
 }

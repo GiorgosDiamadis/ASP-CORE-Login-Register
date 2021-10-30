@@ -1,11 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Components.Forms;
 using MySqlConnector;
 using WebApplication.Database.DatabaseAccessObjects.Interfaces;
 using WebApplication.Models;
+using RestSharp;
+using RestSharp.Authenticators;
 
 namespace WebApplication.Database.DatabaseAccessObjects
 {
@@ -33,7 +37,16 @@ namespace WebApplication.Database.DatabaseAccessObjects
             await connection.OpenAsync();
             MySqlCommand mySqlCommand =
                 new MySqlCommand(
-                    "create table if not exists users(id varchar(120) not null, user_name varchar(120) not null,user_role varchar(120) not null, user_salt varchar(120) not null, user_hash varchar(120) not null ,primary key(id));",
+                    @"create table if not exists users(
+                    id varchar(120) unique not null,
+                    has_validated int not null,
+                     user_name varchar(120) unique not null,
+                    user_role varchar(120) not null,
+                    user_phone varchar(32) not null,
+                    user_email varchar(64) not null ,
+                    user_salt varchar(120) not null, 
+                    user_hash varchar(120) not null ,
+                    primary key(id));",
                     connection);
 
             await mySqlCommand.ExecuteReaderAsync();
@@ -49,19 +62,78 @@ namespace WebApplication.Database.DatabaseAccessObjects
             await connection.OpenAsync();
             MySqlCommand mySqlCommand =
                 new MySqlCommand(
-                    "insert into users(id,user_name,user_role,user_salt,user_hash) values(@ID,@NAME,@ROLE,@SALT,@HASH) ",
+                    @"insert into users(id,has_validated,user_name,user_role,user_phone,user_email,user_salt,user_hash)
+                     values(@ID,@HASVALIDATED,@NAME,@ROLE,@PHONE,@EMAIL,@SALT,@HASH) ",
                     connection);
+
             mySqlCommand.Parameters.AddWithValue("@ID", userId);
+            mySqlCommand.Parameters.AddWithValue("@HASVALIDATED", 0);
             mySqlCommand.Parameters.AddWithValue("@NAME", user.Name);
             mySqlCommand.Parameters.AddWithValue("@ROLE", (int) user.Role);
+            mySqlCommand.Parameters.AddWithValue("@PHONE", user.PhoneNumber);
+            mySqlCommand.Parameters.AddWithValue("@EMAIL", user.Email);
             mySqlCommand.Parameters.AddWithValue("@SALT", hashSalt[1]);
             mySqlCommand.Parameters.AddWithValue("@HASH", hashSalt[0]);
 
 
-            await mySqlCommand.ExecuteReaderAsync();
-            await connection.CloseAsync();
+            try
+            {
+                await mySqlCommand.ExecuteReaderAsync();
+                await connection.CloseAsync();
+                user.Id = userId;
+                SendConfirmationEmail(user);
+                return true;
+            }
+            catch (Exception e)
+            {
+                await connection.CloseAsync();
+                return false;
+            }
+        }
 
-            return true;
+        public async Task<bool> ConfirmEmail(string token)
+        {
+            MySqlConnection connection = _mySqlContext.GetConnection();
+            await connection.OpenAsync();
+            try
+            {
+                MySqlCommand mySqlCommand =
+                    new MySqlCommand(
+                        @"update users set has_validated=1 where id=@ID",
+                        connection);
+                mySqlCommand.Parameters.AddWithValue("@ID", token);
+                await mySqlCommand.ExecuteReaderAsync();
+                await connection.CloseAsync();
+                return true;
+            }
+            catch (Exception e)
+            {
+                await connection.CloseAsync();
+                Console.WriteLine(e);
+                return false;
+            }
+        }
+
+        private IRestResponse SendConfirmationEmail(User user)
+        {
+            RestClient client = new RestClient();
+            client.BaseUrl = new Uri("https://api.eu.mailgun.net/v3");
+            client.Authenticator =
+                new HttpBasicAuthenticator("api",
+                    "key-3fd13d45e6a1d3243db9bbd88bf69780");
+            RestRequest request = new RestRequest();
+            request.AddParameter("domain", "mg.diamadisgiorgos.com", ParameterType.UrlSegment);
+            request.Resource = "{domain}/messages";
+            request.AddParameter("from", "Diamadis Giorgos | BugTracker <mailgun@mg.diamadisgiorgos.com>");
+
+            request.AddParameter("to", user.Email);
+
+            request.AddParameter("subject", "Hello Diamadis Giorgos");
+            request.AddParameter("template", "confirmationmail");
+            var link = "http://localhost:5000/confirmEmail?token=" + user.Id;
+            request.AddParameter("v:link", link);
+            request.Method = Method.POST;
+            return client.Execute(request);
         }
 
         public async Task<User> LogIn(string name, string enteredPassword)
@@ -79,13 +151,18 @@ namespace WebApplication.Database.DatabaseAccessObjects
                 User dbUser = new User();
                 string storedSalt = "";
                 string storedHash = "";
+                int hasValidated = 0;
+                Console.WriteLine(dbUser);
                 while (reader.Read())
                 {
                     dbUser.Name = reader.GetString(reader.GetOrdinal("user_name"));
                     int enumPos = Int32.Parse(reader.GetString(reader.GetOrdinal("user_role")));
                     dbUser.Role = (Role) enumPos;
                     dbUser.Id = reader.GetString(reader.GetOrdinal("id"));
+                    dbUser.PhoneNumber = reader.GetString(reader.GetOrdinal("user_phone"));
+                    dbUser.Email = reader.GetString(reader.GetOrdinal("user_email"));
 
+                    hasValidated = reader.GetInt32(reader.GetOrdinal("has_validated"));
 
                     storedSalt = reader.GetString(reader.GetOrdinal("user_salt"));
                     storedHash = reader.GetString(reader.GetOrdinal("user_hash"));
@@ -93,9 +170,8 @@ namespace WebApplication.Database.DatabaseAccessObjects
 
                 await connection.CloseAsync();
 
-                if (CheckValidPassword(enteredPassword, storedSalt, storedHash))
+                if (CheckValidPassword(enteredPassword, storedSalt, storedHash) && hasValidated == 1)
                 {
-                    
                     return dbUser;
                 }
                 else
@@ -147,15 +223,27 @@ namespace WebApplication.Database.DatabaseAccessObjects
         }
 
 
-        public async Task<User> Search(string name)
+        public async Task<User> Search(string name = null, string id = null)
         {
             MySqlConnection connection = _mySqlContext.GetConnection();
             await connection.OpenAsync();
-            MySqlCommand mySqlCommand =
-                new MySqlCommand(
-                    "select * from users where user_name=@NAME;",
-                    connection);
-            mySqlCommand.Parameters.AddWithValue("@NAME", name);
+            MySqlCommand mySqlCommand;
+            if (id == null)
+            {
+                mySqlCommand =
+                    new MySqlCommand(
+                        "select * from users where user_name=@NAME;",
+                        connection);
+                mySqlCommand.Parameters.AddWithValue("@NAME", name);
+            }
+            else
+            {
+                mySqlCommand =
+                    new MySqlCommand(
+                        "select * from users where id=@ID;",
+                        connection);
+                mySqlCommand.Parameters.AddWithValue("@ID", id);
+            }
 
             using (MySqlDataReader reader = await mySqlCommand.ExecuteReaderAsync())
             {
@@ -164,6 +252,8 @@ namespace WebApplication.Database.DatabaseAccessObjects
                 {
                     dbUser.Name = reader.GetString(reader.GetOrdinal("user_name"));
                     dbUser.Password = reader.GetString(reader.GetOrdinal("user_password"));
+                    dbUser.PhoneNumber = reader.GetString(reader.GetOrdinal("user_phone"));
+                    dbUser.Email = reader.GetString(reader.GetOrdinal("user_email"));
                     int enumPos = Int32.Parse(reader.GetString(reader.GetOrdinal("user_role")));
                     dbUser.Role = (Role) enumPos;
                     dbUser.Id = reader.GetString(reader.GetOrdinal("id"));
@@ -177,7 +267,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
 
         public User Edit(User data)
         {
-            throw new NotImplementedException();
+            return null;
         }
     }
 }
