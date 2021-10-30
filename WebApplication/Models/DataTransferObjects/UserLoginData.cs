@@ -2,9 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace WebApplication.Models.DataTransferObjects
 {
-    public class UserLoginDTO
+    public class UserLoginData : DataTransferObjectBase
     {
-        [Required(ErrorMessage = "You must enter a username!!")] public string Name { get; set; }
+        [Required] public string Name { get; set; }
 
         [Required]
         [MinLength(8)]

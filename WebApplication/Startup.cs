@@ -20,6 +20,7 @@ using WebApplication.Database.DatabaseAccessObjects;
 using WebApplication.Database.DatabaseAccessObjects.Interfaces;
 using WebApplication.Filters;
 using WebApplication.Models;
+using WebApplication.Models.DataTransferObjects;
 using WebApplication.Services;
 using WebApplication.Services.Interfaces;
 
@@ -67,7 +68,7 @@ namespace WebApplication
                 };
             });
 
-            services.AddTransient<IDao<User>, UserDao>();
+            services.AddTransient<IDao<DataTransferObjectBase>, UserDao>();
             services.AddTransient<ITokenService, TokenService>();
             services.AddSession();
             services.AddRazorPages();

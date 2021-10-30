@@ -10,10 +10,11 @@ using WebApplication.Database.DatabaseAccessObjects.Interfaces;
 using WebApplication.Models;
 using RestSharp;
 using RestSharp.Authenticators;
+using WebApplication.Models.DataTransferObjects;
 
 namespace WebApplication.Database.DatabaseAccessObjects
 {
-    public class UserDao : IDao<User>
+    public class UserDao : IDao<DataTransferObjectBase>
     {
         private readonly MySqlContext _mySqlContext;
         private readonly int NAME_ROLE_CHAR_LENGTH = 120;
@@ -25,7 +26,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             this._mySqlContext = mySqlContext;
         }
 
-        public IEnumerable<User> GetAll(Predicate<User> condition = null)
+        public IEnumerable<DataTransferObjectBase> GetAll(Predicate<DataTransferObjectBase> condition = null)
         {
             return null;
         }
@@ -53,9 +54,10 @@ namespace WebApplication.Database.DatabaseAccessObjects
             await connection.CloseAsync();
         }
 
-        public async Task<Messenger> Register(User user)
+        public async Task<Messenger> Register(DataTransferObjectBase user)
         {
-            string[] hashSalt = HashPassword(user.Password);
+            UserRegisterDto userRegisterDto = (UserRegisterDto) user;
+            string[] hashSalt = HashPassword(userRegisterDto.Password);
             string userId = Guid.NewGuid().ToString();
 
             MySqlConnection connection = _mySqlContext.GetConnection();
@@ -68,10 +70,10 @@ namespace WebApplication.Database.DatabaseAccessObjects
 
             mySqlCommand.Parameters.AddWithValue("@ID", userId);
             mySqlCommand.Parameters.AddWithValue("@HASVALIDATED", 0);
-            mySqlCommand.Parameters.AddWithValue("@NAME", user.Name);
-            mySqlCommand.Parameters.AddWithValue("@ROLE", (int) user.Role);
-            mySqlCommand.Parameters.AddWithValue("@PHONE", user.PhoneNumber);
-            mySqlCommand.Parameters.AddWithValue("@EMAIL", user.Email);
+            mySqlCommand.Parameters.AddWithValue("@NAME", userRegisterDto.Name);
+            mySqlCommand.Parameters.AddWithValue("@ROLE", (int) userRegisterDto.Role);
+            mySqlCommand.Parameters.AddWithValue("@PHONE", userRegisterDto.PhoneNumber);
+            mySqlCommand.Parameters.AddWithValue("@EMAIL", userRegisterDto.Email);
             mySqlCommand.Parameters.AddWithValue("@SALT", hashSalt[1]);
             mySqlCommand.Parameters.AddWithValue("@HASH", hashSalt[0]);
 
@@ -80,8 +82,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             {
                 await mySqlCommand.ExecuteReaderAsync();
                 await connection.CloseAsync();
-                user.Id = userId;
-                SendConfirmationEmail(user);
+                SendConfirmationEmail(userRegisterDto.Email,userId);
 
                 return new Messenger(
                     "You have been successfully registered. Please confirm your email in order to proceed!", false);
@@ -117,7 +118,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             }
         }
 
-        private IRestResponse SendConfirmationEmail(User user)
+        private IRestResponse SendConfirmationEmail(string email,string id)
         {
             RestClient client = new RestClient();
             client.BaseUrl = new Uri("https://api.eu.mailgun.net/v3");
@@ -129,25 +130,26 @@ namespace WebApplication.Database.DatabaseAccessObjects
             request.Resource = "{domain}/messages";
             request.AddParameter("from", "Diamadis Giorgos | BugTracker <mailgun@mg.diamadisgiorgos.com>");
 
-            request.AddParameter("to", user.Email);
+            request.AddParameter("to", email);
 
             request.AddParameter("subject", "Hello Diamadis Giorgos");
             request.AddParameter("template", "confirmationmail");
-            var link = "http://localhost:5000/confirmEmail?token=" + user.Id;
+            var link = "http://localhost:5000/confirmEmail?token=" + id;
             request.AddParameter("v:link", link);
             request.Method = Method.POST;
             return client.Execute(request);
         }
 
-        public async Task<Messenger> LogIn(string name, string enteredPassword)
+        public async Task<Messenger> LogIn(DataTransferObjectBase user)
         {
+            UserLoginData userLoginData = (UserLoginData) user;
             MySqlConnection connection = _mySqlContext.GetConnection();
             await connection.OpenAsync();
             MySqlCommand mySqlCommand =
                 new MySqlCommand(
                     "select * from users where user_name=@NAME;",
                     connection);
-            mySqlCommand.Parameters.AddWithValue("@NAME", name);
+            mySqlCommand.Parameters.AddWithValue("@NAME", userLoginData.Name);
 
             using (MySqlDataReader reader = await mySqlCommand.ExecuteReaderAsync())
             {
@@ -173,7 +175,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
 
                 await connection.CloseAsync();
 
-                if (CheckValidPassword(enteredPassword, storedSalt, storedHash) && hasValidated == 1)
+                if (CheckValidPassword(userLoginData.Password, storedSalt, storedHash) && hasValidated == 1)
                 {
                     Messenger message = new Messenger($"Welcome {dbUser.Name}", false);
                     message.SetData(dbUser);
@@ -223,7 +225,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             return hashSalt;
         }
         
-        public async Task<User> Search(string name = null, string id = null)
+        public async Task<DataTransferObjectBase> Search(string name = null, string id = null)
         {
             MySqlConnection connection = _mySqlContext.GetConnection();
             await connection.OpenAsync();
@@ -261,16 +263,16 @@ namespace WebApplication.Database.DatabaseAccessObjects
 
                 await connection.CloseAsync();
 
-                return dbUser;
+                return null;
             }
         }
 
-        public User Edit(User data)
+        public DataTransferObjectBase Edit(DataTransferObjectBase data)
         {
             return null;
         }
         
-        public bool Remove(User data)
+        public bool Remove(DataTransferObjectBase data)
         {
             return false;
         }

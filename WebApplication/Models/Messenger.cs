@@ -2,36 +2,26 @@ namespace WebApplication.Models
 {
     public class Messenger
     {
-        private string message;
-        private bool isError;
-        private object data;
+        private object _data;
         
-        public string Message
-        {
-            get => message;
-            set => message = value;
-        }
+        public string Message { get; set; }
 
-        public bool IsError
-        {
-            get => isError;
-            set => isError = value;
-        }
+        public bool IsError { get; set; }
 
         public Messenger(string message, bool isError)
         {
-            this.message = message;
-            this.isError = isError;
+            this.Message = message;
+            this.IsError = isError;
         }
 
         public T GetData<T>()
         {
-            return (T) data;
+            return (T) _data;
         }
 
         public void SetData<T>(T data)
         {
-            this.data = data;
+            this._data = data;
         }
         
     }

@@ -43,10 +43,10 @@ namespace WebApplication.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> LogIn([Bind("Name,Password")] UserLoginDTO userLoginDto)
+        public async Task<IActionResult> LogIn([Bind("Name,Password")] UserLoginData userLoginData)
         {
             UserDao userDao = new UserDao(_mySqlContext);
-            Messenger message = await userDao.LogIn(userLoginDto.Name, userLoginDto.Password);
+            Messenger message = await userDao.LogIn(userLoginData);
             if (message.IsError)
             {
                 _flasher.Flash(Types.Danger,message.Message,true);
@@ -81,10 +81,10 @@ namespace WebApplication.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Register([Bind("PhoneNumber,Email,Role,Name,Password")] User user)
+        public async Task<IActionResult> Register([Bind("PhoneNumber,Email,Role,Name,Password")] UserRegisterDto userRegisterDto)
         {
             UserDao userDao = new UserDao(_mySqlContext);
-            Messenger result = await userDao.Register(user);
+            Messenger result = await userDao.Register(userRegisterDto);
 
             if (result.IsError)
             {
