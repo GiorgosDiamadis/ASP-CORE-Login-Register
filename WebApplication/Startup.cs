@@ -68,16 +68,14 @@ namespace WebApplication
                 };
             });
 
-            services.AddTransient<IDao<DataTransferObjectBase>, UserDao>();
+            services.AddTransient<IDatabaseAccessObject<DataTransferObjectBase>, UserDbAccess>();
             services.AddTransient<ITokenService, TokenService>();
+            services.AddTransient<IMailer, Mailer>();
             services.AddSession();
             services.AddRazorPages();
 
 
-            services.AddFlashes().AddMvc(options=>
-            {
-                options.Filters.Add(new ValidateModelStateFilter());
-            });
+            services.AddFlashes().AddMvc(options => { options.Filters.Add(new ValidateModelStateFilter()); });
 
             services.AddScoped<UserAuthorizationFilter>();
 
@@ -89,7 +87,8 @@ namespace WebApplication
         {
             var dbObjectTypes = AppDomain.CurrentDomain.GetAssemblies().SelectMany(assembly => assembly.GetTypes())
                 .Where(x =>
-                    x.GetInterfaces().Any(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IDao<>)))
+                    x.GetInterfaces().Any(i =>
+                        i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IDatabaseAccessObject<>)))
                 .ToList();
 
             foreach (var type in dbObjectTypes)
@@ -134,7 +133,6 @@ namespace WebApplication
 
             app.UseAuthorization();
 
-            
 
             app.UseEndpoints(endpoints =>
             {
@@ -143,7 +141,5 @@ namespace WebApplication
                     pattern: "{controller=Home}/{action=Index}/{id?}");
             });
         }
-
-        
     }
 }

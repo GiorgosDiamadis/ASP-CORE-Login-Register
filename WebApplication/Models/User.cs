@@ -19,9 +19,10 @@ namespace WebApplication.Models
         [Required] [Phone] public string PhoneNumber { get; set; }
 
         [Required] [EmailAddress] public string Email { get; set; }
-        
+
         public string Hash { get; set; }
         public string Salt { get; set; }
         public int HasValidated { get; set; }
+        public string ConfirmationToken { get; set; }
     }
 }

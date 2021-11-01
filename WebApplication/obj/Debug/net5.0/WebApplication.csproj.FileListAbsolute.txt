@@ -178,3 +178,5 @@
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/bin/Debug/net5.0/Core.Flash.dll
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/bin/Debug/net5.0/Microsoft.AspNetCore.JsonPatch.dll
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/bin/Debug/net5.0/Newtonsoft.Json.Bson.dll
+/home/giorgos/Desktop/Projects/WebApplication/WebApplication/obj/Debug/net5.0/Razor/Views/User/ForgotPassword.cshtml.g.cs
+/home/giorgos/Desktop/Projects/WebApplication/WebApplication/obj/Debug/net5.0/Razor/Views/User/PasswordRecovery.cshtml.g.cs

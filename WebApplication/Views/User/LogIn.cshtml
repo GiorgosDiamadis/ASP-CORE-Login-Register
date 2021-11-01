@@ -28,10 +28,18 @@
                 <input type="submit" value="Create" class="btn btn-primary"/>
             </div>
         </form>
+
+        @* <form asp-action="ForgotPassword"> *@
+        @*     <div class="form-group"> *@
+        @*         <input type="submit" value="Forgot Password?" class="btn btn-primary"/> *@
+        @*     </div> *@
+        @* </form> *@
+        <a asp-action="ForgotPassword">Forgot password?</a>
+
+        <a asp-action="Register">Register</a>
     </div>
 </div>
 
 @section Scripts {
     @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
 }
-

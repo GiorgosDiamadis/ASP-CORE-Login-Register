@@ -23,7 +23,6 @@ namespace WebApplication.Filters
             string token = context.HttpContext.Session.GetString("Token");
             if (string.IsNullOrEmpty(token))
             {
-                Console.WriteLine(1);
                 RedirectToLoginPage(context);
                 return;
             }
@@ -31,7 +30,6 @@ namespace WebApplication.Filters
             if (!_tokenService.ValidateToken(_configuration["JWT:Key"], _configuration["JWT:Issuer"],
                 _configuration["JWT:Audience"], token))
             {
-                Console.WriteLine(2);
                 RedirectToLoginPage(context);
                 return;
             }
@@ -51,10 +49,10 @@ namespace WebApplication.Filters
 
         private static void RedirectToLoginPage(AuthorizationFilterContext context)
         {
-            if (context.HttpContext.Request.Path != "/User/Login" &&
-                context.HttpContext.Request.Path != "/User/Register")
+            if (context.HttpContext.Request.Path != "/login" &&
+                context.HttpContext.Request.Path != "/register")
             {
-                context.HttpContext.Response.Redirect("/User/Login");
+                context.HttpContext.Response.Redirect("/login");
             }
         }
     }

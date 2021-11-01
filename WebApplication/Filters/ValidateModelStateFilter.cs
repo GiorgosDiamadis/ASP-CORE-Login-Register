@@ -12,6 +12,7 @@ namespace WebApplication.Filters
         {
             if (!filterContext.ModelState.IsValid)
             {
+                Console.WriteLine("Not valid");
                 filterContext.Result = new BadRequestResult();
             }
         }

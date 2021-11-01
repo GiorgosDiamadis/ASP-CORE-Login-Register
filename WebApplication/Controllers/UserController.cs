@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Core.Flash;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using RestSharp;
@@ -29,30 +30,88 @@ namespace WebApplication.Controllers
         private readonly ITokenService _tokenService;
         private readonly MySqlContext _mySqlContext;
         private readonly IFlasher _flasher;
+        private readonly IMailer _mailer;
 
         public UserController(WebApplicationContext context, IConfiguration config, ITokenService tokenService,
-            MySqlContext mySqlContext, IFlasher flasher)
+            MySqlContext mySqlContext, IFlasher flasher, IMailer mailer)
         {
             _context = context;
             _config = config;
             _tokenService = tokenService;
             _mySqlContext = mySqlContext;
             _flasher = flasher;
+            _mailer = mailer;
         }
 
 
+        [HttpPost]
+        [Route("/logout")]
+        public async Task<IActionResult> LogOut()
+        {
+            UserService.RemoveToken(HttpContext);
+            return RedirectToAction("LogIn");
+        }
+
+
+        [Route("/forgotPassword")]
+        public async Task<IActionResult> ForgotPassword()
+        {
+            return View();
+        }
+
+        [HttpPost]
+        [Route("/forgotPassword")]
+        public async Task<IActionResult> ForgotPassword([Bind("Email,Name")] ForgotPasswordData forgotPasswordData)
+        {
+            Console.WriteLine("forgot");
+            string passwordRecoverytoken = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+            UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
+
+            // Dictionary<string, KeyValuePair<object, Type>> edit = new Dictionary<string, KeyValuePair<object, Type>>();
+            // edit["password_recovery_token"] =
+            //     new KeyValuePair<object, Type>(new string(passwordRecoverytoken), typeof(string));
+            //
+            // Dictionary<string, KeyValuePair<object, Type>> where = new Dictionary<string, KeyValuePair<object, Type>>();
+            // where["user_name"] = new KeyValuePair<object, Type>(new string(forgotPasswordData.Name), typeof(string));
+            //
+            //
+            // Messenger result = await userDbAccess.Edit(edit, where);
+
+
+            // if (result.IsError)
+            // {
+            //     _flasher.Flash(Types.Danger, "Something went wrong during the password recovery process!");
+            // }
+
+            _mailer.ForgotPassWordEmail(forgotPasswordData.Email, passwordRecoverytoken);
+            _flasher.Flash(Types.Success, "We have sent you a password recovery link to your email!");
+            return RedirectToAction("LogIn");
+        }
+
+        [Route("/passwordRecovery")]
+        public async Task<IActionResult> PasswordRecovery([FromQuery] string token)
+        {
+            Console.WriteLine(token);
+            UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
+             // userDbAccess.Search()
+            return View();
+        }
+
+        [Route("/login")]
         public async Task<IActionResult> LogIn()
         {
             return View();
         }
 
         [HttpPost]
+        [Route("/login")]
         public async Task<IActionResult> LogIn([Bind("Name,Password")] UserLoginData userLoginData)
         {
-            UserDao userDao = new UserDao(_mySqlContext);
+            UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
 
-            Messenger result = await userDao.Search(name: userLoginData.Name);
-            
+            Messenger result = await userDbAccess.Get(name: userLoginData.Name);
+
+            Console.WriteLine(result.Message);
 
             // If there is no record with this name
             if (result.IsError)
@@ -72,11 +131,78 @@ namespace WebApplication.Controllers
                     return RedirectToAction("Index", "Home");
                 }
             }
-            
+
             // If password is incorrect!
             _flasher.Flash(Types.Danger, "Password or username is incorrect!", true);
             return View();
         }
+
+
+        [Route("/register")]
+        public async Task<IActionResult> Register()
+        {
+            return View();
+        }
+
+
+        [Route("/confirmEmail")]
+        public async Task<IActionResult> ConfirmEmail([FromQuery] string token)
+        {
+            UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
+            Messenger messenger = await userDbAccess.ConfirmEmail(token);
+            Console.WriteLine(token);
+
+            if (messenger.IsError)
+                _flasher.Flash(Types.Danger, messenger.Message, true);
+            else
+                _flasher.Flash(Types.Success, messenger.Message, true);
+            return RedirectToAction("LogIn");
+        }
+
+        [HttpPost]
+        [Route("/register")]
+        public async Task<IActionResult> Register(
+            [Bind("PhoneNumber,Email,Role,Name,Password")]
+            UserRegisterData userRegisterData)
+        {
+            UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
+            Dictionary<string, object> parameters = new Dictionary<string, object>();
+            parameters["name"] = userRegisterData.Name;
+            parameters["email"] = userRegisterData.Email;
+            parameters["phone"] = userRegisterData.PhoneNumber;
+            parameters["role"] = userRegisterData.Role;
+
+            string[] hashSalt = HashPassword(userRegisterData.Password);
+
+            parameters["hash"] = hashSalt[0];
+            parameters["salt"] = hashSalt[1];
+
+            Messenger result = await userDbAccess.Insert(parameters);
+
+            if (result.IsError)
+            {
+                _flasher.Flash(Types.Danger, result.Message);
+                return RedirectToAction("Register");
+            }
+            else
+            {
+                User newUser = result.GetData<User>();
+
+                _mailer.ConfirmEmail(newUser.Email, newUser.ConfirmationToken);
+
+                _flasher.Flash(Types.Success, result.Message);
+                return RedirectToAction("LogIn");
+            }
+        }
+
+
+        [HttpPost, ActionName("Delete")]
+        [ServiceFilter(typeof(UserAuthorizationFilter))]
+        public async void DeleteConfirmed([Bind("Id")] User user)
+        {
+            Response.Redirect(Request.Headers["Referer"].ToString());
+        }
+
 
         private bool PasswordIsValid(string enteredPassword, string storedSalt, string storedHash)
         {
@@ -111,72 +237,6 @@ namespace WebApplication.Controllers
             string passwordHashed = Convert.ToBase64String(bhash);
             hashSalt[0] = passwordHashed;
             return hashSalt;
-        }
-
-
-        public async Task<IActionResult> Register()
-        {
-            return View();
-        }
-
-
-        [Route("/confirmEmail")]
-        public async Task<IActionResult> ConfirmEmail([FromQuery] string token)
-        {
-            UserDao userDao = new UserDao(_mySqlContext);
-            Messenger messenger = await userDao.ConfirmEmail(token);
-
-            if (messenger.IsError)
-                _flasher.Flash(Types.Danger, messenger.Message, true);
-            else
-                _flasher.Flash(Types.Success, messenger.Message, true);
-            return RedirectToAction("LogIn");
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Register(
-            [Bind("PhoneNumber,Email,Role,Name,Password")]
-            UserRegisterDto userRegisterDto)
-        {
-            UserDao userDao = new UserDao(_mySqlContext);
-            Dictionary<string, object> parameters = new Dictionary<string, object>();
-            parameters["name"] = userRegisterDto.Name;
-            parameters["email"] = userRegisterDto.Email;
-            parameters["phone"] = userRegisterDto.PhoneNumber;
-            parameters["role"] = userRegisterDto.Role;
-
-            string[] hashSalt = HashPassword(userRegisterDto.Password);
-
-            parameters["hash"] = hashSalt[0];
-            parameters["salt"] = hashSalt[1];
-            
-            Messenger result = await userDao.Register(parameters);
-
-            if (result.IsError)
-            {
-                _flasher.Flash(Types.Danger, result.Message);
-                return RedirectToAction("Register");
-            }
-            else
-            {
-                _flasher.Flash(Types.Success, result.Message);
-                return RedirectToAction("LogIn");
-            }
-        }
-
-
-        // POST: User/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        [ServiceFilter(typeof(UserAuthorizationFilter))]
-        public async void DeleteConfirmed([Bind("Id")] User user)
-        {
-            Response.Redirect(Request.Headers["Referer"].ToString());
-        }
-
-        private bool UserExists(string id)
-        {
-            return _context.User.Any(e => e.Id == id);
         }
     }
 }

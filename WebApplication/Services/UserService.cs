@@ -25,6 +25,14 @@ namespace WebApplication.Services
             }
         }
 
+        public static void RemoveToken(HttpContext context)
+        {
+            if (context != null)
+            {
+                context.Session.Remove("Token");
+            }
+        }
+
         public static string GetName(ITokenService tokenService)
         {
             return tokenService.DecodeToken(currentToken)?.Claims.FirstOrDefault(cl => cl is {Type: ClaimTypes.Name})
@@ -39,16 +47,17 @@ namespace WebApplication.Services
 
         public static string GetPhone(ITokenService tokenService)
         {
-            return tokenService.DecodeToken(currentToken).Claims.FirstOrDefault(cl => cl is {Type: ClaimTypes.HomePhone})
+            return tokenService.DecodeToken(currentToken).Claims
+                .FirstOrDefault(cl => cl is {Type: ClaimTypes.HomePhone})
                 ?.Value;
         }
-        
+
         public static string GetEmail(ITokenService tokenService)
         {
             return tokenService.DecodeToken(currentToken).Claims.FirstOrDefault(cl => cl is {Type: ClaimTypes.Email})
                 ?.Value;
         }
-        
+
         public static string GetId(ITokenService tokenService)
         {
             return tokenService.DecodeToken(currentToken).Claims

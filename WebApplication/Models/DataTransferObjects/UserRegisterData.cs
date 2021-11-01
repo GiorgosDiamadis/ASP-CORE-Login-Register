@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace WebApplication.Models.DataTransferObjects
 {
-    public class UserRegisterDto : DataTransferObjectBase
+    public class UserRegisterData : DataTransferObjectBase
     {
         [Required] public Role Role { get; set; }
 
