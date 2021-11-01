@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using Core.Flash;
 using Microsoft.AspNetCore.Http;
@@ -47,20 +50,69 @@ namespace WebApplication.Controllers
         public async Task<IActionResult> LogIn([Bind("Name,Password")] UserLoginData userLoginData)
         {
             UserDao userDao = new UserDao(_mySqlContext);
-            Messenger message = await userDao.LogIn(userLoginData);
-            if (message.IsError)
+
+            Messenger result = await userDao.Search(name: userLoginData.Name);
+            
+
+            // If there is no record with this name
+            if (result.IsError)
             {
-                _flasher.Flash(Types.Danger, message.Message, true);
+                _flasher.Flash(Types.Danger, result.Message, true);
                 return View();
+            }
+
+            // If there is a record with this name check for valid password
+            if (result.GetData<User>() != null)
+            {
+                User dbUser = result.GetData<User>();
+                if (PasswordIsValid(userLoginData.Password, dbUser.Salt, dbUser.Hash))
+                {
+                    UserService.Authenticate(_config, _tokenService, HttpContext, dbUser);
+                    _flasher.Flash(Types.Success, $"Welcome {dbUser.Name}", true);
+                    return RedirectToAction("Index", "Home");
+                }
+            }
+            
+            // If password is incorrect!
+            _flasher.Flash(Types.Danger, "Password or username is incorrect!", true);
+            return View();
+        }
+
+        private bool PasswordIsValid(string enteredPassword, string storedSalt, string storedHash)
+        {
+            return storedHash == HashPassword(enteredPassword, storedSalt)[0];
+        }
+
+        private static string[] HashPassword(string password, string salt = null)
+        {
+            string[] hashSalt = new string[2];
+
+            string passwordSalt = "";
+
+            RNGCryptoServiceProvider rngCryptoServiceProvider = new RNGCryptoServiceProvider();
+            if (salt == null)
+            {
+                byte[] buff = new byte[12];
+                rngCryptoServiceProvider.GetBytes(buff);
+                passwordSalt = Convert.ToBase64String(buff);
+                hashSalt[1] = passwordSalt;
             }
             else
             {
-                User dbUser = message.GetData<User>();
-                UserService.Authenticate(_config, _tokenService, HttpContext, dbUser);
-                _flasher.Flash(Types.Success, message.Message, true);
-                return RedirectToAction("Index", "Home");
+                passwordSalt = salt;
             }
+
+
+            string passwordWithSalt = password + passwordSalt;
+
+            HashAlgorithm hashAlgorithm = new SHA256CryptoServiceProvider();
+            byte[] bhash = hashAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(passwordWithSalt));
+
+            string passwordHashed = Convert.ToBase64String(bhash);
+            hashSalt[0] = passwordHashed;
+            return hashSalt;
         }
+
 
         public async Task<IActionResult> Register()
         {
@@ -83,10 +135,22 @@ namespace WebApplication.Controllers
 
         [HttpPost]
         public async Task<IActionResult> Register(
-            [Bind("PhoneNumber,Email,Role,Name,Password")] UserRegisterDto userRegisterDto)
+            [Bind("PhoneNumber,Email,Role,Name,Password")]
+            UserRegisterDto userRegisterDto)
         {
             UserDao userDao = new UserDao(_mySqlContext);
-            Messenger result = await userDao.Register(userRegisterDto);
+            Dictionary<string, object> parameters = new Dictionary<string, object>();
+            parameters["name"] = userRegisterDto.Name;
+            parameters["email"] = userRegisterDto.Email;
+            parameters["phone"] = userRegisterDto.PhoneNumber;
+            parameters["role"] = userRegisterDto.Role;
+
+            string[] hashSalt = HashPassword(userRegisterDto.Password);
+
+            parameters["hash"] = hashSalt[0];
+            parameters["salt"] = hashSalt[1];
+            
+            Messenger result = await userDao.Register(parameters);
 
             if (result.IsError)
             {
@@ -100,7 +164,7 @@ namespace WebApplication.Controllers
             }
         }
 
- 
+
         // POST: User/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]

@@ -19,10 +19,9 @@ namespace WebApplication.Models
         [Required] [Phone] public string PhoneNumber { get; set; }
 
         [Required] [EmailAddress] public string Email { get; set; }
-
-        [Required]
-        [MaxLength(32)]
-        [MinLength(8)]
-        public string Password { get; set; }
+        
+        public string Hash { get; set; }
+        public string Salt { get; set; }
+        public int HasValidated { get; set; }
     }
 }

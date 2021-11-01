@@ -31,17 +31,13 @@ namespace WebApplication.Database.DatabaseAccessObjects
             throw new NotImplementedException();
         }
 
-        public Task<Messenger> Register(DataTransferObjectBase user)
+        public Task<Messenger> Register(Dictionary<string,object> parameters)
         {
             throw new NotImplementedException();
         }
 
-        public Task<Messenger> Insert(DataTransferObjectBase obj)
-        {
-            throw new NotImplementedException();
-        }
 
-        public async Task<DataTransferObjectBase> Search(string name = null, string id = null)
+        public async Task<Messenger> Search(string name = null, string id = null)
         {
             throw new NotImplementedException();
         }

@@ -12,8 +12,8 @@ namespace WebApplication.Database.DatabaseAccessObjects.Interfaces
         IEnumerable<T> GetAll(Predicate<T> condition = null);
         void CreateTableIfNotExists();
         bool Remove(T obj);
-        Task<Messenger> Register(T obj);
-        Task<T> Search(string name = null, string id = null);
+        Task<Messenger> Register(Dictionary<string,object> parameters);
+        Task<Messenger> Search(string name = null, string id = null);
         T Edit(T obj);
     }
 }

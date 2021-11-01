@@ -56,15 +56,11 @@ namespace WebApplication.Database.DatabaseAccessObjects
             await connection.CloseAsync();
         }
 
-        public async Task<Messenger> Register(DataTransferObjectBase user)
+        public async Task<Messenger> Register(Dictionary<string, object> parameters)
         {
-            UserRegisterDto userRegisterDto = (UserRegisterDto) user;
-            string[] hashSalt = HashPassword(userRegisterDto.Password);
             string userId = Guid.NewGuid().ToString();
 
             string emailConfirmationToken = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
-
-
             MySqlConnection connection = _mySqlContext.GetConnection();
             await connection.OpenAsync();
             MySqlCommand mySqlCommand =
@@ -76,12 +72,12 @@ namespace WebApplication.Database.DatabaseAccessObjects
             mySqlCommand.Parameters.AddWithValue("@ID", userId);
             mySqlCommand.Parameters.AddWithValue("@HASVALIDATED", 0);
             mySqlCommand.Parameters.AddWithValue("@CONFIRMATIONTOKEN", emailConfirmationToken);
-            mySqlCommand.Parameters.AddWithValue("@NAME", userRegisterDto.Name);
-            mySqlCommand.Parameters.AddWithValue("@ROLE", (int) userRegisterDto.Role);
-            mySqlCommand.Parameters.AddWithValue("@PHONE", userRegisterDto.PhoneNumber);
-            mySqlCommand.Parameters.AddWithValue("@EMAIL", userRegisterDto.Email);
-            mySqlCommand.Parameters.AddWithValue("@SALT", hashSalt[1]);
-            mySqlCommand.Parameters.AddWithValue("@HASH", hashSalt[0]);
+            mySqlCommand.Parameters.AddWithValue("@NAME", parameters["name"].ToString());
+            mySqlCommand.Parameters.AddWithValue("@ROLE", (int) parameters["role"]);
+            mySqlCommand.Parameters.AddWithValue("@PHONE", parameters["phone"].ToString());
+            mySqlCommand.Parameters.AddWithValue("@EMAIL", parameters["email"].ToString());
+            mySqlCommand.Parameters.AddWithValue("@SALT", parameters["salt"].ToString());
+            mySqlCommand.Parameters.AddWithValue("@HASH", parameters["hash"].ToString());
 
 
             try
@@ -89,7 +85,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
                 await mySqlCommand.ExecuteReaderAsync();
                 await connection.CloseAsync();
 
-                SendConfirmationEmail(userRegisterDto.Email, emailConfirmationToken);
+                SendConfirmationEmail(parameters["email"].ToString(), emailConfirmationToken);
                 Messenger messenger =
                     new Messenger(
                         "You have been successfully registered. Please confirm your email in order to proceed!", false);
@@ -105,7 +101,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             }
         }
 
-        private IRestResponse SendConfirmationEmail(string email, string token)
+        private void SendConfirmationEmail(string email, string token)
         {
             RestClient client = new RestClient();
             client.BaseUrl = new Uri("https://api.eu.mailgun.net/v3");
@@ -124,7 +120,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             var link = "http://localhost:5000/confirmEmail?token=" + token;
             request.AddParameter("v:link", link);
             request.Method = Method.POST;
-            return client.Execute(request);
+            client.Execute(request);
         }
 
 
@@ -144,12 +140,10 @@ namespace WebApplication.Database.DatabaseAccessObjects
                 if (reader.RecordsAffected != 0)
                 {
                     return new Messenger("Your email has been confirmed! You can now log in to your account.", false);
-
                 }
                 else
                 {
                     return new Messenger("Invalid token.", true);
-
                 }
             }
             catch (Exception e)
@@ -160,93 +154,9 @@ namespace WebApplication.Database.DatabaseAccessObjects
                     true);
             }
         }
+        
 
-        public async Task<Messenger> LogIn(DataTransferObjectBase user)
-        {
-            UserLoginData userLoginData = (UserLoginData) user;
-            MySqlConnection connection = _mySqlContext.GetConnection();
-            await connection.OpenAsync();
-            MySqlCommand mySqlCommand =
-                new MySqlCommand(
-                    "select * from users where user_name=@NAME;",
-                    connection);
-            mySqlCommand.Parameters.AddWithValue("@NAME", userLoginData.Name);
-
-            using (MySqlDataReader reader = await mySqlCommand.ExecuteReaderAsync())
-            {
-                User dbUser = new User();
-                string storedSalt = "";
-                string storedHash = "";
-                int hasValidated = 0;
-
-                while (reader.Read())
-                {
-                    dbUser.Name = reader.GetString(reader.GetOrdinal("user_name"));
-                    int enumPos = Int32.Parse(reader.GetString(reader.GetOrdinal("user_role")));
-                    dbUser.Role = (Role) enumPos;
-                    dbUser.Id = reader.GetString(reader.GetOrdinal("id"));
-                    dbUser.PhoneNumber = reader.GetString(reader.GetOrdinal("user_phone"));
-                    dbUser.Email = reader.GetString(reader.GetOrdinal("user_email"));
-
-                    hasValidated = reader.GetInt32(reader.GetOrdinal("has_validated"));
-
-                    storedSalt = reader.GetString(reader.GetOrdinal("user_salt"));
-                    storedHash = reader.GetString(reader.GetOrdinal("user_hash"));
-                }
-
-                await connection.CloseAsync();
-
-                if (CheckValidPassword(userLoginData.Password, storedSalt, storedHash) && hasValidated == 1)
-                {
-                    Messenger message = new Messenger($"Welcome {dbUser.Name}", false);
-                    message.SetData(dbUser);
-                    return message;
-                }
-                else
-                {
-                    Messenger messenger = new Messenger("Username or password is incorrect!", true);
-                    return messenger;
-                }
-            }
-        }
-
-        private bool CheckValidPassword(string enteredPassword, string storedSalt, string storedHash)
-        {
-            return storedHash == HashPassword(enteredPassword, storedSalt)[0];
-        }
-
-
-        private static string[] HashPassword(string password, string salt = null)
-        {
-            string[] hashSalt = new string[2];
-
-            string passwordSalt = "";
-
-            RNGCryptoServiceProvider rngCryptoServiceProvider = new RNGCryptoServiceProvider();
-            if (salt == null)
-            {
-                byte[] buff = new byte[12];
-                rngCryptoServiceProvider.GetBytes(buff);
-                passwordSalt = Convert.ToBase64String(buff);
-                hashSalt[1] = passwordSalt;
-            }
-            else
-            {
-                passwordSalt = salt;
-            }
-
-
-            string passwordWithSalt = password + passwordSalt;
-
-            HashAlgorithm hashAlgorithm = new SHA256CryptoServiceProvider();
-            byte[] bhash = hashAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(passwordWithSalt));
-
-            string passwordHashed = Convert.ToBase64String(bhash);
-            hashSalt[0] = passwordHashed;
-            return hashSalt;
-        }
-
-        public async Task<DataTransferObjectBase> Search(string name = null, string id = null)
+        public async Task<Messenger> Search(string name = null, string id = null)
         {
             MySqlConnection connection = _mySqlContext.GetConnection();
             await connection.OpenAsync();
@@ -268,23 +178,35 @@ namespace WebApplication.Database.DatabaseAccessObjects
                 mySqlCommand.Parameters.AddWithValue("@ID", id);
             }
 
-            using (MySqlDataReader reader = await mySqlCommand.ExecuteReaderAsync())
+            MySqlDataReader reader = await mySqlCommand.ExecuteReaderAsync();
+
+            if (reader.HasRows)
             {
                 User dbUser = new User();
                 while (reader.Read())
                 {
                     dbUser.Name = reader.GetString(reader.GetOrdinal("user_name"));
-                    dbUser.Password = reader.GetString(reader.GetOrdinal("user_password"));
+                    dbUser.Hash = reader.GetString(reader.GetOrdinal("user_hash"));
+                    dbUser.Salt = reader.GetString(reader.GetOrdinal("user_salt"));
                     dbUser.PhoneNumber = reader.GetString(reader.GetOrdinal("user_phone"));
                     dbUser.Email = reader.GetString(reader.GetOrdinal("user_email"));
                     int enumPos = Int32.Parse(reader.GetString(reader.GetOrdinal("user_role")));
                     dbUser.Role = (Role) enumPos;
+                    dbUser.HasValidated = reader.GetInt32(reader.GetOrdinal("has_validated"));
                     dbUser.Id = reader.GetString(reader.GetOrdinal("id"));
                 }
 
                 await connection.CloseAsync();
+                Messenger result = new Messenger("", false);
+                result.SetData(dbUser);
 
-                return null;
+                return result;
+            }
+            else
+            {
+                Messenger result = new Messenger("Username or password is incorrect!", true);
+                await connection.CloseAsync();
+                return result;
             }
         }
 
