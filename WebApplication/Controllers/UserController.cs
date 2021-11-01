@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using RestSharp;
+using RestSharp.Authenticators;
 using WebApplication.Database;
 using WebApplication.Database.DatabaseAccessObjects;
 using WebApplication.Filters;
@@ -26,7 +28,7 @@ namespace WebApplication.Controllers
         private readonly IFlasher _flasher;
 
         public UserController(WebApplicationContext context, IConfiguration config, ITokenService tokenService,
-            MySqlContext mySqlContext,IFlasher flasher)
+            MySqlContext mySqlContext, IFlasher flasher)
         {
             _context = context;
             _config = config;
@@ -38,7 +40,6 @@ namespace WebApplication.Controllers
 
         public async Task<IActionResult> LogIn()
         {
-
             return View();
         }
 
@@ -49,18 +50,18 @@ namespace WebApplication.Controllers
             Messenger message = await userDao.LogIn(userLoginData);
             if (message.IsError)
             {
-                _flasher.Flash(Types.Danger,message.Message,true);
+                _flasher.Flash(Types.Danger, message.Message, true);
                 return View();
             }
             else
             {
                 User dbUser = message.GetData<User>();
                 UserService.Authenticate(_config, _tokenService, HttpContext, dbUser);
-                _flasher.Flash(Types.Success,message.Message,true);
+                _flasher.Flash(Types.Success, message.Message, true);
                 return RedirectToAction("Index", "Home");
             }
-            
         }
+
         public async Task<IActionResult> Register()
         {
             return View();
@@ -73,31 +74,33 @@ namespace WebApplication.Controllers
             UserDao userDao = new UserDao(_mySqlContext);
             Messenger messenger = await userDao.ConfirmEmail(token);
 
-            if(messenger.IsError)
-                _flasher.Flash(Types.Danger,messenger.Message,true);
+            if (messenger.IsError)
+                _flasher.Flash(Types.Danger, messenger.Message, true);
             else
-                _flasher.Flash(Types.Success,messenger.Message,true);
+                _flasher.Flash(Types.Success, messenger.Message, true);
             return RedirectToAction("LogIn");
         }
 
         [HttpPost]
-        public async Task<IActionResult> Register([Bind("PhoneNumber,Email,Role,Name,Password")] UserRegisterDto userRegisterDto)
+        public async Task<IActionResult> Register(
+            [Bind("PhoneNumber,Email,Role,Name,Password")] UserRegisterDto userRegisterDto)
         {
             UserDao userDao = new UserDao(_mySqlContext);
             Messenger result = await userDao.Register(userRegisterDto);
 
             if (result.IsError)
             {
-                _flasher.Flash(Types.Danger,result.Message);
+                _flasher.Flash(Types.Danger, result.Message);
                 return RedirectToAction("Register");
             }
             else
             {
-                _flasher.Flash(Types.Success,result.Message);
+                _flasher.Flash(Types.Success, result.Message);
                 return RedirectToAction("LogIn");
             }
         }
 
+ 
         // POST: User/Delete/5
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
