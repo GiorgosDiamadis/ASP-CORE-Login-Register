@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using RestSharp;
 using RestSharp.Authenticators;
 using WebApplication.Database;
@@ -65,36 +66,107 @@ namespace WebApplication.Controllers
         {
             Console.WriteLine("forgot");
             string passwordRecoverytoken = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
-            UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
 
-            // Dictionary<string, KeyValuePair<object, Type>> edit = new Dictionary<string, KeyValuePair<object, Type>>();
-            // edit["password_recovery_token"] =
-            //     new KeyValuePair<object, Type>(new string(passwordRecoverytoken), typeof(string));
-            //
-            // Dictionary<string, KeyValuePair<object, Type>> where = new Dictionary<string, KeyValuePair<object, Type>>();
-            // where["user_name"] = new KeyValuePair<object, Type>(new string(forgotPasswordData.Name), typeof(string));
-            //
-            //
-            // Messenger result = await userDbAccess.Edit(edit, where);
+            PasswordRecoveryDbAccess passwordRecoveryDbAccess = new PasswordRecoveryDbAccess(_mySqlContext);
+            Dictionary<string, object> args = new Dictionary<string, object>();
+            args["token"] = passwordRecoverytoken;
+            args["user_name"] = forgotPasswordData.Name;
+            Messenger result = await passwordRecoveryDbAccess.Insert(args);
 
-
-            // if (result.IsError)
-            // {
-            //     _flasher.Flash(Types.Danger, "Something went wrong during the password recovery process!");
-            // }
+            if (result.IsError)
+            {
+                _flasher.Flash(Types.Danger, result.Message);
+                return RedirectToAction("LogIn");
+            }
 
             _mailer.ForgotPassWordEmail(forgotPasswordData.Email, passwordRecoverytoken);
-            _flasher.Flash(Types.Success, "We have sent you a password recovery link to your email!");
+            _flasher.Flash(Types.Success, result.Message);
             return RedirectToAction("LogIn");
         }
 
-        [Route("/passwordRecovery")]
-        public async Task<IActionResult> PasswordRecovery([FromQuery] string token)
+        // [HttpPost]
+        [Route("/checkValidRecoveryToken")]
+        public async Task<IActionResult> CheckValidRecoveryToken([FromQuery] string token)
         {
-            Console.WriteLine(token);
+            Console.WriteLine($"checking {token}'s validity");
+            // token = token.Replace("+", "%2B");
+            PasswordRecoveryDbAccess passwordRecoveryDbAccess = new PasswordRecoveryDbAccess(_mySqlContext);
+            Messenger result = await passwordRecoveryDbAccess.Get(id: token);
+            if (result.IsError)
+            {
+                _flasher.Flash(Types.Danger, result.Message);
+                return RedirectToAction("LogIn");
+            }
+
+            string userName = result.GetData<string>();
+
             UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
-             // userDbAccess.Search()
+            result = await userDbAccess.Get(name: userName);
+
+            if (result.IsError)
+            {
+                _flasher.Flash(Types.Danger, "Something went wrong during password recovery process!");
+                return RedirectToAction("LogIn");
+            }
+
+
+            HttpContext.Session.SetString("Recover", userName);
+            return RedirectToAction("PasswordRecovery");
+        }
+
+
+        [Route("/passwordRecovery")]
+        public async Task<IActionResult> PasswordRecovery()
+        {
+            // Console.WriteLine(token);
+            string userName = HttpContext.Session.GetString("Recover");
+            if (string.IsNullOrEmpty(userName))
+            {
+                _flasher.Flash(Types.Danger, "You are not authorized for this action!");
+                return RedirectToAction("LogIn");
+            }
+
             return View();
+        }
+
+        [HttpPost]
+        [Route("/passwordRecovery")]
+        public async Task<IActionResult> PasswordRecovery(
+            [Bind("Password,ConfirmPassword")] NewPasswordData newPasswordData)
+        {
+            if (newPasswordData.Password != newPasswordData.ConfirmPassword)
+            {
+                _flasher.Flash(Types.Danger, "Passwords don't match!");
+                return RedirectToAction("PasswordRecovery");
+            }
+
+            string userName = HttpContext.Session.GetString("Recover");
+            HttpContext.Session.Remove("Recover");
+
+            string[] hashSalt = HashPassword(newPasswordData.Password);
+
+            UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
+
+            Dictionary<string, KeyValuePair<object, Type>> edit = new Dictionary<string, KeyValuePair<object, Type>>();
+            Dictionary<string, KeyValuePair<object, Type>> where = new Dictionary<string, KeyValuePair<object, Type>>();
+
+            edit["user_hash"] = new KeyValuePair<object, Type>(new string(hashSalt[0]), typeof(string));
+            edit["user_salt"] = new KeyValuePair<object, Type>(new string(hashSalt[1]), typeof(string));
+
+            where["user_name"] = new KeyValuePair<object, Type>(new string(userName), typeof(string));
+
+            Messenger result = await userDbAccess.Edit(edit, where);
+
+            if (result.IsError)
+            {
+                _flasher.Flash(Types.Danger, "Something went wrong during password recovery process!");
+            }
+            else
+            {
+                _flasher.Flash(Types.Success, "Your password has been changed successfully!");
+            }
+
+            return RedirectToAction("LogIn");
         }
 
         [Route("/login")]
@@ -148,6 +220,7 @@ namespace WebApplication.Controllers
         [Route("/confirmEmail")]
         public async Task<IActionResult> ConfirmEmail([FromQuery] string token)
         {
+            Console.WriteLine(token);
             UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
             Messenger messenger = await userDbAccess.ConfirmEmail(token);
             Console.WriteLine(token);
@@ -187,6 +260,7 @@ namespace WebApplication.Controllers
             else
             {
                 User newUser = result.GetData<User>();
+
 
                 _mailer.ConfirmEmail(newUser.Email, newUser.ConfirmationToken);
 

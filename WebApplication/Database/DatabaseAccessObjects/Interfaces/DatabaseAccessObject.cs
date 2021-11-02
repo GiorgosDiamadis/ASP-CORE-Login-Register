@@ -14,6 +14,6 @@ namespace WebApplication.Database.DatabaseAccessObjects.Interfaces
         bool Remove(T obj);
         Task<Messenger> Insert(Dictionary<string,object> parameters);
         Task<Messenger> Get(string name = null, string id = null);
-        // Task<Messenger> Edit(Dictionary<string,Dictionary<object,Type>> edit,Dictionary<string,object> where);
+        Task<Messenger> Edit(Dictionary<string,KeyValuePair<object,Type>> edit,Dictionary<string,KeyValuePair<object,Type>> where);
     }
 }
