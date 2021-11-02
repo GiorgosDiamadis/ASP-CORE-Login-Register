@@ -4,14 +4,18 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Core.Flash;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Headers;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Configuration;
 using WebApplication.Database;
 using WebApplication.Database.DatabaseAccessObjects;
 using WebApplication.Filters;
 using WebApplication.Models;
 using WebApplication.Models.DataTransferObjects;
+using WebApplication.Models.Interfaces;
 using WebApplication.Services;
 using WebApplication.Services.Interfaces;
 
@@ -55,9 +59,18 @@ namespace WebApplication.Controllers
 
         [HttpPost]
         [Route("/forgotPassword")]
-        public async Task<IActionResult> ForgotPassword([Bind("Email,Name")] ForgotPasswordData forgotPasswordData)
+        public async Task<IActionResult> ForgotPassword([Bind("Name")] ForgotPasswordData forgotPasswordData)
         {
-            Console.WriteLine("forgot");
+            UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
+            Messenger userResult = await userDbAccess.Get(name: forgotPasswordData.Name);
+            if (userResult.IsError)
+            {
+                _flasher.Flash(Types.Danger, "Something went wrong during the password recovery process!", true);
+                return RedirectToAction("LogIn");
+            }
+
+            User dbUser = userResult.GetData<User>();
+
             string passwordRecoverytoken = Guid.NewGuid().ToString();
 
             PasswordRecoveryDbAccess passwordRecoveryDbAccess = new PasswordRecoveryDbAccess(_mySqlContext);
@@ -72,7 +85,8 @@ namespace WebApplication.Controllers
                 return RedirectToAction("LogIn");
             }
 
-            _mailer.ForgotPassWordEmail(forgotPasswordData.Email, passwordRecoverytoken);
+
+            _mailer.ForgotPassWordEmail(dbUser.Email, passwordRecoverytoken);
             _flasher.Flash(Types.Success, result.Message);
             return RedirectToAction("LogIn");
         }
@@ -81,8 +95,12 @@ namespace WebApplication.Controllers
         [Route("/checkValidRecoveryToken")]
         public async Task<IActionResult> CheckValidRecoveryToken([FromQuery] string token)
         {
-            Console.WriteLine($"checking {token}'s validity");
-            // token = token.Replace("+", "%2B");
+            if (string.IsNullOrEmpty(token))
+            {
+                _flasher.Flash(Types.Danger, "You are not authorized for this action!");
+                return RedirectToAction("LogIn");
+            }
+
             PasswordRecoveryDbAccess passwordRecoveryDbAccess = new PasswordRecoveryDbAccess(_mySqlContext);
             Messenger result = await passwordRecoveryDbAccess.Get(id: token);
             if (result.IsError)
@@ -91,11 +109,17 @@ namespace WebApplication.Controllers
                 return RedirectToAction("LogIn");
             }
 
-            string userName = result.GetData<string>();
+            PasswordRecoveryEntry passwordRecoveryEntry = result.GetData<PasswordRecoveryEntry>();
 
-            Console.WriteLine($"Searching for {userName}");
+            if (DateTime.Now >= DateTime.Parse(passwordRecoveryEntry.ExpirationDate))
+            {
+                await passwordRecoveryDbAccess.Remove(passwordRecoveryEntry.Username);
+                _flasher.Flash(Types.Danger, "Token has expired!");
+                return RedirectToAction("LogIn");
+            }
+
             UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
-            result = await userDbAccess.Get(name: userName);
+            result = await userDbAccess.Get(name: passwordRecoveryEntry.Username);
 
             if (result.IsError)
             {
@@ -103,22 +127,34 @@ namespace WebApplication.Controllers
                 return RedirectToAction("LogIn");
             }
 
-
-            HttpContext.Session.SetString("Recover", userName);
-            return RedirectToAction("PasswordRecovery");
+            return RedirectToAction("PasswordRecovery", new {userName = passwordRecoveryEntry.Username});
         }
 
 
         [Route("/passwordRecovery")]
-        public async Task<IActionResult> PasswordRecovery()
+        public async Task<IActionResult> PasswordRecovery([FromQuery] string userName)
         {
-            // Console.WriteLine(token);
-            string userName = HttpContext.Session.GetString("Recover");
-            if (string.IsNullOrEmpty(userName))
+            RequestHeaders headers = HttpContext.Request.GetTypedHeaders();
+            string referer = headers.Referer?.AbsolutePath;
+            Console.WriteLine($"Referer is {referer}");
+
+            if (!string.IsNullOrEmpty(referer))
             {
-                _flasher.Flash(Types.Danger, "You are not authorized for this action!");
-                return RedirectToAction("LogIn");
+                if (string.IsNullOrEmpty(userName) || referer != "/checkValidRecoveryToken")
+                {
+                    _flasher.Flash(Types.Danger, "You are not authorized for this action!");
+                    return RedirectToAction("LogIn");
+                }
             }
+            else
+            {
+                if (string.IsNullOrEmpty(userName))
+                {
+                    _flasher.Flash(Types.Danger, "You are not authorized for this action!");
+                    return RedirectToAction("LogIn");
+                }
+            }
+
 
             return View();
         }
@@ -303,7 +339,6 @@ namespace WebApplication.Controllers
 
             HashAlgorithm hashAlgorithm = new SHA256CryptoServiceProvider();
             byte[] bhash = hashAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(passwordWithSalt));
-
             string passwordHashed = Convert.ToBase64String(bhash);
             hashSalt[0] = passwordHashed;
             return hashSalt;

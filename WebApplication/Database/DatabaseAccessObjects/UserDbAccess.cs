@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 using MySqlConnector;
 using WebApplication.Database.DatabaseAccessObjects.Interfaces;
@@ -36,7 +38,6 @@ namespace WebApplication.Database.DatabaseAccessObjects
                     id varchar(120) unique not null,
                     has_validated int not null,
                     email_confirmation_token varchar(120) not null,
-                     password_recovery_token varchar(120) not null   ,
                      user_name varchar(120) unique not null,
                     user_role varchar(120) not null,
                     user_phone varchar(32) not null,
@@ -63,7 +64,6 @@ namespace WebApplication.Database.DatabaseAccessObjects
                   id,
                   has_validated,
                   email_confirmation_token,
-                  password_recovery_token,
                   user_name,
                   user_role,
                   user_phone,
@@ -74,7 +74,6 @@ namespace WebApplication.Database.DatabaseAccessObjects
                        @ID,
                        @HASVALIDATED,
                        @CONFIRMATIONTOKEN,
-                       @RECOVERYTOKEN,
                        @NAME,
                        @ROLE,
                        @PHONE,
@@ -86,7 +85,6 @@ namespace WebApplication.Database.DatabaseAccessObjects
             mySqlCommand.Parameters.AddWithValue("@ID", userId);
             mySqlCommand.Parameters.AddWithValue("@HASVALIDATED", 0);
             mySqlCommand.Parameters.AddWithValue("@CONFIRMATIONTOKEN", emailConfirmationToken);
-            mySqlCommand.Parameters.AddWithValue("@RECOVERYTOKEN", "");
             mySqlCommand.Parameters.AddWithValue("@NAME", parameters["name"].ToString());
             mySqlCommand.Parameters.AddWithValue("@ROLE", (int) parameters["role"]);
             mySqlCommand.Parameters.AddWithValue("@PHONE", parameters["phone"].ToString());
@@ -238,7 +236,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             }
 
             query = query.Remove(query.Length - 5, 4);
-            
+
             MySqlConnection connection = _mySqlContext.GetConnection();
             await connection.OpenAsync();
             MySqlCommand mySqlCommand = new MySqlCommand(query, connection);
@@ -257,7 +255,6 @@ namespace WebApplication.Database.DatabaseAccessObjects
 
                 return new Messenger("", true);
             }
-            
         }
 
         public async Task<Messenger> Remove(string id)

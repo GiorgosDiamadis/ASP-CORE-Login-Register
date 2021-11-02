@@ -5,6 +5,7 @@ using MySqlConnector;
 using WebApplication.Database.DatabaseAccessObjects.Interfaces;
 using WebApplication.Models;
 using WebApplication.Models.DataTransferObjects;
+using WebApplication.Models.Interfaces;
 
 namespace WebApplication.Database.DatabaseAccessObjects
 {
@@ -34,6 +35,8 @@ namespace WebApplication.Database.DatabaseAccessObjects
                     id varchar(120) unique not null,
                     token varchar(120) not null,
                      user_name varchar(120) unique not null,
+                     date_created varchar(120) not null ,
+                     expires_in varchar(120) not null ,
                     primary key(id));",
                     connection);
 
@@ -51,6 +54,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
                     connection);
 
             mySqlCommand.Parameters.AddWithValue("@ID", userName);
+            
             try
             {
                 await mySqlCommand.ExecuteReaderAsync();
@@ -59,6 +63,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             }
             catch (Exception e)
             {
+                Console.WriteLine(e.Message);
                 await connection.CloseAsync();
                 return new Messenger("", true);
             }
@@ -77,12 +82,17 @@ namespace WebApplication.Database.DatabaseAccessObjects
             {
                 MySqlCommand mySqlCommand =
                     new MySqlCommand(
-                        @"insert into password_recoveries(id,token,user_name) values(@ID,@TOKEN,@USERNAME)",
+                        @"insert into password_recoveries(id,token,date_created,expires_in,user_name) values(@ID,@TOKEN,@CREATED,@EXPIRES,@USERNAME)",
                         connection);
 
+                
+                DateTime now = DateTime.Now;
 
+                
                 mySqlCommand.Parameters.AddWithValue("@ID", id);
                 mySqlCommand.Parameters.AddWithValue("@TOKEN", parameters["token"].ToString());
+                mySqlCommand.Parameters.AddWithValue("@CREATED", now);
+                mySqlCommand.Parameters.AddWithValue("@EXPIRES", now.AddMinutes(30));
                 mySqlCommand.Parameters.AddWithValue("@USERNAME", parameters["user_name"].ToString());
                 MySqlDataReader reader = await mySqlCommand.ExecuteReaderAsync();
 
@@ -102,6 +112,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             }
             catch (Exception e)
             {
+                Console.WriteLine(e.Message);
                 if (e.Message.Contains("Duplicate entry"))
                 {
                     Dictionary<string, KeyValuePair<object, Type>> edit =
@@ -137,9 +148,9 @@ namespace WebApplication.Database.DatabaseAccessObjects
             await connection.OpenAsync();
 
             MySqlCommand mySqlCommand =
-                new MySqlCommand(@"select user_name from password_recoveries where token=@ID", connection);
+                new MySqlCommand(@"select * from password_recoveries where token=@ID", connection);
             mySqlCommand.Parameters.AddWithValue("@ID", id);
-            string userName = "";
+            PasswordRecoveryEntry passwordRecoveryEntry = new PasswordRecoveryEntry();
             Messenger result;
             try
             {
@@ -148,11 +159,15 @@ namespace WebApplication.Database.DatabaseAccessObjects
                 {
                     while (reader.Read())
                     {
-                        userName = reader.GetString(reader.GetOrdinal("user_name"));
+                        passwordRecoveryEntry.Username = reader.GetString(reader.GetOrdinal("user_name"));
+                        passwordRecoveryEntry.Id = reader.GetString(reader.GetOrdinal("id"));
+                        passwordRecoveryEntry.Token = reader.GetString(reader.GetOrdinal("token"));
+                        passwordRecoveryEntry.DateCreate = reader.GetString(reader.GetOrdinal("date_created"));
+                        passwordRecoveryEntry.ExpirationDate = reader.GetString(reader.GetOrdinal("expires_in"));
                     }
 
                     result = new Messenger("", false);
-                    result.SetData(userName);
+                    result.SetData(passwordRecoveryEntry);
                 }
                 else
                 {
