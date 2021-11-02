@@ -1,9 +1,7 @@
-using System;
 using System.Linq;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
-using WebApplication.Filters;
 using WebApplication.Models;
 using WebApplication.Services.Interfaces;
 
