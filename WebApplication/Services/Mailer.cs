@@ -23,7 +23,9 @@ namespace WebApplication.Services
 
             request.AddParameter("subject", "Hello Diamadis Giorgos");
             request.AddParameter("template", "passwordrecovery");
-            token = token.Replace("+", "%2B");
+            // token = token.Replace("+", "%2B");
+            // token = token.Replace("&", "%2B");
+            // token = token.Replace("?", "%2B");
             request.AddParameter("v:token", token);
             request.Method = Method.POST;
             client.Execute(request);
@@ -45,7 +47,9 @@ namespace WebApplication.Services
 
             request.AddParameter("subject", "Hello Diamadis Giorgos");
             request.AddParameter("template", "confirmationmail");
-            token = token.Replace("+", "%2B");
+            // token = token.Replace("+", "%2B");
+            // token = token.Replace("&", "%2B");
+            // token = token.Replace("?", "%2B");
             var link = "http://localhost:5000/confirmEmail?token=" + token;
             request.AddParameter("v:link", link);
             request.Method = Method.POST;

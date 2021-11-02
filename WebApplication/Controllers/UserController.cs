@@ -65,7 +65,7 @@ namespace WebApplication.Controllers
         public async Task<IActionResult> ForgotPassword([Bind("Email,Name")] ForgotPasswordData forgotPasswordData)
         {
             Console.WriteLine("forgot");
-            string passwordRecoverytoken = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+            string passwordRecoverytoken = Guid.NewGuid().ToString();
 
             PasswordRecoveryDbAccess passwordRecoveryDbAccess = new PasswordRecoveryDbAccess(_mySqlContext);
             Dictionary<string, object> args = new Dictionary<string, object>();
@@ -100,6 +100,7 @@ namespace WebApplication.Controllers
 
             string userName = result.GetData<string>();
 
+            Console.WriteLine($"Searching for {userName}");
             UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
             result = await userDbAccess.Get(name: userName);
 
@@ -163,6 +164,8 @@ namespace WebApplication.Controllers
             }
             else
             {
+                PasswordRecoveryDbAccess passwordRecoveryDbAccess = new PasswordRecoveryDbAccess(_mySqlContext);
+                await passwordRecoveryDbAccess.Remove(userName);
                 _flasher.Flash(Types.Success, "Your password has been changed successfully!");
             }
 

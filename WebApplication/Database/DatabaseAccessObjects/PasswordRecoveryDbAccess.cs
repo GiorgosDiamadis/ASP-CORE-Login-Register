@@ -42,16 +42,35 @@ namespace WebApplication.Database.DatabaseAccessObjects
             await connection.CloseAsync();
         }
 
-        public bool Remove(DataTransferObjectBase obj)
+        public async Task<Messenger> Remove(string userName)
         {
-            return _databaseAccessObjectImplementation.Remove(obj);
+            MySqlConnection connection = _mySqlContext.GetConnection();
+            await connection.OpenAsync();
+            MySqlCommand mySqlCommand =
+                new MySqlCommand(
+                    @"delete from password_recoveries where user_name=@ID;",
+                    connection);
+
+            mySqlCommand.Parameters.AddWithValue("@ID", userName);
+            try
+            {
+                await mySqlCommand.ExecuteReaderAsync();
+                await connection.CloseAsync();
+                return new Messenger("", false);
+            }
+            catch (Exception e)
+            {
+                await connection.CloseAsync();
+                return new Messenger("", true);
+            }
+            
         }
 
         public async Task<Messenger> Insert(Dictionary<string, object> parameters)
         {
             MySqlConnection connection = _mySqlContext.GetConnection();
             await connection.OpenAsync();
-            string id = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+            string id = Guid.NewGuid().ToString();
             Messenger result;
 
 

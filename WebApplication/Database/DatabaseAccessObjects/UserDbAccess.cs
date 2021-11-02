@@ -64,7 +64,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
         {
             string userId = Guid.NewGuid().ToString();
 
-            string emailConfirmationToken = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+            string emailConfirmationToken = Guid.NewGuid().ToString();
             MySqlConnection connection = _mySqlContext.GetConnection();
             await connection.OpenAsync();
             MySqlCommand mySqlCommand =
@@ -270,9 +270,9 @@ namespace WebApplication.Database.DatabaseAccessObjects
             
         }
 
-        public bool Remove(DataTransferObjectBase data)
+        public async Task<Messenger> Remove(string id)
         {
-            return false;
+            return null;
         }
     }
 }
