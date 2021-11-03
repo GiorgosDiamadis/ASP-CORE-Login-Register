@@ -75,7 +75,7 @@ namespace WebApplication.Controllers
 
             PasswordRecoveryDbAccess passwordRecoveryDbAccess = new PasswordRecoveryDbAccess(_mySqlContext);
             Dictionary<string, object> args = new Dictionary<string, object>();
-            args["token"] = passwordRecoverytoken;
+            args["token"] = Hash(passwordRecoverytoken);
             args["user_name"] = forgotPasswordData.Name;
             Messenger result = await passwordRecoveryDbAccess.Insert(args);
 
@@ -102,7 +102,7 @@ namespace WebApplication.Controllers
 
 
             PasswordRecoveryDbAccess passwordRecoveryDbAccess = new PasswordRecoveryDbAccess(_mySqlContext);
-            Messenger result = await passwordRecoveryDbAccess.Get(id: token);
+            Messenger result = await passwordRecoveryDbAccess.Get(id: Hash(token));
             if (result.IsError)
             {
                 _flasher.Flash(Types.Danger, result.Message);
@@ -143,11 +143,28 @@ namespace WebApplication.Controllers
                 return RedirectToAction("PasswordRecovery");
             }
 
-            HttpContext.Session.Remove("Recover");
+            UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
+            PasswordRecoveryDbAccess passwordRecoveryDbAccess = new PasswordRecoveryDbAccess(_mySqlContext);
+            await passwordRecoveryDbAccess.Remove(newPasswordData.Username);
+
+            // Retrieve user, check is key is correct
+            Messenger messenger = await userDbAccess.Get(name: newPasswordData.Username);
+            if (messenger.IsError)
+            {
+                _flasher.Flash(Types.Danger, "Something went wrong during password recovery process! Request a new recovery link!");
+                return RedirectToAction("LogIn");
+            }
+
+            User dbUser = messenger.GetData<User>();
+
+            if (dbUser.EncryptionKey != Hash(newPasswordData.Key))
+            {
+                _flasher.Flash(Types.Danger, "Security key is invalid! Request a new recovery link!");
+                return RedirectToAction("LogIn");
+            }
 
             string[] hashSalt = HashPassword(newPasswordData.Password);
 
-            UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
 
             Dictionary<string, KeyValuePair<object, Type>> edit = new Dictionary<string, KeyValuePair<object, Type>>();
             Dictionary<string, KeyValuePair<object, Type>> where = new Dictionary<string, KeyValuePair<object, Type>>();
@@ -161,15 +178,13 @@ namespace WebApplication.Controllers
 
             if (result.IsError)
             {
-                _flasher.Flash(Types.Danger, "Something went wrong during password recovery process!");
+                _flasher.Flash(Types.Danger, "Something went wrong during password recovery process! Request a new recovery link!");
             }
             else
             {
-                PasswordRecoveryDbAccess passwordRecoveryDbAccess = new PasswordRecoveryDbAccess(_mySqlContext);
-                await passwordRecoveryDbAccess.Remove(newPasswordData.Username);
                 _flasher.Flash(Types.Success, "Your password has been changed successfully!");
             }
-
+            
             return RedirectToAction("LogIn");
         }
 
@@ -196,10 +211,18 @@ namespace WebApplication.Controllers
                 return View();
             }
 
+
             // If there is a record with this name check for valid password
             if (result.GetData<User>() != null)
             {
                 User dbUser = result.GetData<User>();
+
+                if (dbUser.HasValidated == 0)
+                {
+                    _flasher.Flash(Types.Danger, $"Your email is not confirmed!", true);
+                    return RedirectToAction("LogIn");
+                }
+
                 if (PasswordIsValid(userLoginData.Password, dbUser.Salt, dbUser.Hash))
                 {
                     UserService.Authenticate(_config, _tokenService, HttpContext, dbUser);
@@ -249,6 +272,9 @@ namespace WebApplication.Controllers
             parameters["phone"] = userRegisterData.PhoneNumber;
             parameters["role"] = userRegisterData.Role;
 
+            parameters["key"] = GenerateRandomCryptographicKey(32);
+
+
             string[] hashSalt = HashPassword(userRegisterData.Password);
 
             parameters["hash"] = hashSalt[0];
@@ -273,6 +299,13 @@ namespace WebApplication.Controllers
             }
         }
 
+        public string GenerateRandomCryptographicKey(int keyLength)
+        {
+            RNGCryptoServiceProvider rngCryptoServiceProvider = new RNGCryptoServiceProvider();
+            byte[] randomBytes = new byte[keyLength];
+            rngCryptoServiceProvider.GetBytes(randomBytes);
+            return Convert.ToBase64String(randomBytes);
+        }
 
         [HttpPost, ActionName("Delete")]
         [ServiceFilter(typeof(UserAuthorizationFilter))]
@@ -286,6 +319,14 @@ namespace WebApplication.Controllers
         {
             return storedHash == HashPassword(enteredPassword, storedSalt)[0];
         }
+
+        private string Hash(string value)
+        {
+            HashAlgorithm hashAlgorithm = new SHA256CryptoServiceProvider();
+            byte[] bhash = hashAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(value));
+            return Convert.ToBase64String(bhash);
+        }
+
 
         private static string[] HashPassword(string password, string salt = null)
         {

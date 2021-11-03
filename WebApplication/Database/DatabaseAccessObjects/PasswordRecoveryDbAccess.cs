@@ -81,7 +81,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             {
                 MySqlCommand mySqlCommand =
                     new MySqlCommand(
-                        @"insert into password_recoveries(id,token,date_created,expires_in,user_name) values(@ID,@TOKEN,@USED,@CREATED,@EXPIRES,@USERNAME)",
+                        @"insert into password_recoveries(id,token,date_created,expires_in,user_name) values(@ID,@TOKEN,@CREATED,@EXPIRES,@USERNAME)",
                         connection);
 
 

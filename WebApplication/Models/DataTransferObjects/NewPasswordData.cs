@@ -11,6 +11,9 @@ namespace WebApplication.Models.DataTransferObjects
         
         [Required]
         public string Username { get; set; }
+        
+        [Required]
+        public string Key { get; set; }
 
         [Required]
         [MaxLength(32)]

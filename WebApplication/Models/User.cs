@@ -24,5 +24,6 @@ namespace WebApplication.Models
         public string Salt { get; set; }
         public int HasValidated { get; set; }
         public string ConfirmationToken { get; set; }
+        public string EncryptionKey { get; set; }
     }
 }

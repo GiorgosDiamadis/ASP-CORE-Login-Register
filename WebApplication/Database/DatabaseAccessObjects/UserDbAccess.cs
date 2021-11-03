@@ -44,6 +44,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
                     user_email varchar(64) not null ,
                     user_salt varchar(120) not null, 
                     user_hash varchar(120) not null ,
+                    security_key varchar(120) not null,
                     primary key(id));",
                     connection);
 
@@ -69,7 +70,8 @@ namespace WebApplication.Database.DatabaseAccessObjects
                   user_phone,
                   user_email,
                   user_salt,
-                  user_hash)
+                  user_hash,
+                  security_key)
                 values(
                        @ID,
                        @HASVALIDATED,
@@ -79,7 +81,8 @@ namespace WebApplication.Database.DatabaseAccessObjects
                        @PHONE,
                        @EMAIL,
                        @SALT,
-                       @HASH) ",
+                       @HASH,
+                       @KEY) ",
                     connection);
 
             mySqlCommand.Parameters.AddWithValue("@ID", userId);
@@ -91,6 +94,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             mySqlCommand.Parameters.AddWithValue("@EMAIL", parameters["email"].ToString());
             mySqlCommand.Parameters.AddWithValue("@SALT", parameters["salt"].ToString());
             mySqlCommand.Parameters.AddWithValue("@HASH", parameters["hash"].ToString());
+            mySqlCommand.Parameters.AddWithValue("@KEY", Hash(parameters["key"].ToString()));
 
 
             try
@@ -103,7 +107,8 @@ namespace WebApplication.Database.DatabaseAccessObjects
 
                 Messenger messenger =
                     new Messenger(
-                        "You have been successfully registered. Please confirm your email in order to proceed!", false);
+                        $"You have been successfully registered. {parameters["key"]} use this key in case you want to change your password. Store it in a secure place. Please confirm your email in order to proceed!",
+                        false);
 
                 messenger.SetData(newUser);
                 return messenger;
@@ -114,6 +119,13 @@ namespace WebApplication.Database.DatabaseAccessObjects
                 await connection.CloseAsync();
                 return new Messenger("Username or email already exists.", true);
             }
+        }
+        
+        private string Hash(string value)
+        {
+            HashAlgorithm hashAlgorithm = new SHA256CryptoServiceProvider();
+            byte[] bhash = hashAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(value));
+            return Convert.ToBase64String(bhash);
         }
 
         public async Task<Messenger> ConfirmEmail(string token)
