@@ -61,8 +61,6 @@ namespace WebApplication
                             (Configuration["JWT:Key"]))
                 };
             });
-
-            services.AddTransient<IDatabaseAccessObject<DataTransferObjectBase>, UserDbAccess>();
             services.AddTransient<ITokenService, TokenService>();
             services.AddTransient<IMailer, Mailer>();
             services.AddSession();
@@ -72,7 +70,6 @@ namespace WebApplication
             services.AddFlashes().AddMvc(options => { options.Filters.Add(new ValidateModelStateFilter()); });
 
             services.AddScoped<UserAuthorizationFilter>();
-
 
             services.AddControllersWithViews();
         }
@@ -88,8 +85,7 @@ namespace WebApplication
             foreach (var type in dbObjectTypes)
             {
                 var dao = Activator.CreateInstance(type, mySqlContext);
-                if (dao == null) continue;
-                var method = dao.GetType().GetMethod("CreateTableIfNotExists");
+                var method = dao?.GetType().GetMethod("CreateTableIfNotExists");
                 method?.Invoke(dao, new object[] { });
             }
         }

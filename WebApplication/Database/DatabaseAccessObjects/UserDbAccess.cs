@@ -7,15 +7,14 @@ using MySqlConnector;
 using WebApplication.Database.DatabaseAccessObjects.Interfaces;
 using WebApplication.Models;
 using WebApplication.Models.DataTransferObjects;
+using WebApplication.Services;
+using WebApplication.Services.Interfaces;
 
 namespace WebApplication.Database.DatabaseAccessObjects
 {
     public class UserDbAccess : IDatabaseAccessObject<DataTransferObjectBase>
     {
         private readonly MySqlContext _mySqlContext;
-        private readonly int NAME_ROLE_CHAR_LENGTH = 120;
-
-        private readonly int PASSWORD_LENGTH = 64;
 
         public UserDbAccess(MySqlContext mySqlContext)
         {
@@ -94,7 +93,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             mySqlCommand.Parameters.AddWithValue("@EMAIL", parameters["email"].ToString());
             mySqlCommand.Parameters.AddWithValue("@SALT", parameters["salt"].ToString());
             mySqlCommand.Parameters.AddWithValue("@HASH", parameters["hash"].ToString());
-            mySqlCommand.Parameters.AddWithValue("@KEY", Hash(parameters["key"].ToString()));
+            mySqlCommand.Parameters.AddWithValue("@KEY", Encryptor.Hash(parameters["key"].ToString()));
 
 
             try
@@ -120,13 +119,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
                 return new Messenger("Username or email already exists.", true);
             }
         }
-        
-        private string Hash(string value)
-        {
-            HashAlgorithm hashAlgorithm = new SHA256CryptoServiceProvider();
-            byte[] bhash = hashAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(value));
-            return Convert.ToBase64String(bhash);
-        }
+
 
         public async Task<Messenger> ConfirmEmail(string token)
         {
@@ -198,6 +191,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
                     dbUser.Role = (Role) enumPos;
                     dbUser.HasValidated = reader.GetInt32(reader.GetOrdinal("has_validated"));
                     dbUser.Id = reader.GetString(reader.GetOrdinal("id"));
+                    dbUser.EncryptionKey = reader.GetString(reader.GetOrdinal("security_key"));
                 }
 
                 await connection.CloseAsync();
@@ -208,6 +202,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             }
             else
             {
+                Console.WriteLine("1235");
                 Messenger result = new Messenger("Username or password is incorrect!", true);
                 await connection.CloseAsync();
                 return result;

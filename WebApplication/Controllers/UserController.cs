@@ -23,17 +23,15 @@ namespace WebApplication.Controllers
 {
     public class UserController : Controller
     {
-        private readonly WebApplicationContext _context;
         private readonly IConfiguration _config;
         private readonly ITokenService _tokenService;
         private readonly MySqlContext _mySqlContext;
         private readonly IFlasher _flasher;
         private readonly IMailer _mailer;
 
-        public UserController(WebApplicationContext context, IConfiguration config, ITokenService tokenService,
+        public UserController(IConfiguration config, ITokenService tokenService,
             MySqlContext mySqlContext, IFlasher flasher, IMailer mailer)
         {
-            _context = context;
             _config = config;
             _tokenService = tokenService;
             _mySqlContext = mySqlContext;
@@ -75,7 +73,7 @@ namespace WebApplication.Controllers
 
             PasswordRecoveryDbAccess passwordRecoveryDbAccess = new PasswordRecoveryDbAccess(_mySqlContext);
             Dictionary<string, object> args = new Dictionary<string, object>();
-            args["token"] = Hash(passwordRecoverytoken);
+            args["token"] = Encryptor.Hash(passwordRecoverytoken);
             args["user_name"] = forgotPasswordData.Name;
             Messenger result = await passwordRecoveryDbAccess.Insert(args);
 
@@ -86,7 +84,9 @@ namespace WebApplication.Controllers
             }
 
 
-            _mailer.ForgotPassWordEmail(dbUser.Email, passwordRecoverytoken, dbUser.Name);
+            string tokenEncrypted = Encryptor.Encrypt(passwordRecoverytoken);
+            string nameEcrypted = Encryptor.Encrypt(dbUser.Name);
+            _mailer.ForgotPassWordEmail(dbUser.Email, tokenEncrypted, nameEcrypted);
             _flasher.Flash(Types.Success, result.Message);
             return RedirectToAction("LogIn");
         }
@@ -100,9 +100,11 @@ namespace WebApplication.Controllers
                 return RedirectToAction("LogIn");
             }
 
+            token = Encryptor.Decrypt(token);
+            string userNameDecrypt = Encryptor.Decrypt(userName);
 
             PasswordRecoveryDbAccess passwordRecoveryDbAccess = new PasswordRecoveryDbAccess(_mySqlContext);
-            Messenger result = await passwordRecoveryDbAccess.Get(id: Hash(token));
+            Messenger result = await passwordRecoveryDbAccess.Get(id: Encryptor.Hash(token));
             if (result.IsError)
             {
                 _flasher.Flash(Types.Danger, result.Message);
@@ -113,13 +115,13 @@ namespace WebApplication.Controllers
 
             if (DateTime.Now >= DateTime.Parse(passwordRecoveryEntry.ExpirationDate))
             {
-                await passwordRecoveryDbAccess.Remove(passwordRecoveryEntry.Username);
+                await passwordRecoveryDbAccess.Remove(userNameDecrypt);
                 _flasher.Flash(Types.Danger, "Token has expired!");
                 return RedirectToAction("LogIn");
             }
 
             UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
-            result = await userDbAccess.Get(name: passwordRecoveryEntry.Username);
+            result = await userDbAccess.Get(name: userNameDecrypt);
 
             if (result.IsError)
             {
@@ -134,7 +136,7 @@ namespace WebApplication.Controllers
         [HttpPost]
         [Route("/passwordRecovery")]
         public async Task<IActionResult> PasswordRecovery(
-            [Bind("Password,ConfirmPassword,Username")]
+            [Bind("Password,ConfirmPassword,Username,Key")]
             NewPasswordData newPasswordData)
         {
             if (newPasswordData.Password != newPasswordData.ConfirmPassword)
@@ -142,6 +144,8 @@ namespace WebApplication.Controllers
                 _flasher.Flash(Types.Danger, "Passwords don't match!");
                 return RedirectToAction("PasswordRecovery");
             }
+
+            newPasswordData.Username = Encryptor.Decrypt(newPasswordData.Username);
 
             UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
             PasswordRecoveryDbAccess passwordRecoveryDbAccess = new PasswordRecoveryDbAccess(_mySqlContext);
@@ -151,19 +155,22 @@ namespace WebApplication.Controllers
             Messenger messenger = await userDbAccess.Get(name: newPasswordData.Username);
             if (messenger.IsError)
             {
-                _flasher.Flash(Types.Danger, "Something went wrong during password recovery process! Request a new recovery link!");
+                _flasher.Flash(Types.Danger,
+                    "Something went wrong during password recovery process! Request a new recovery link!");
                 return RedirectToAction("LogIn");
             }
 
             User dbUser = messenger.GetData<User>();
 
-            if (dbUser.EncryptionKey != Hash(newPasswordData.Key))
+            if (dbUser.EncryptionKey != Encryptor.Hash(newPasswordData.Key))
             {
                 _flasher.Flash(Types.Danger, "Security key is invalid! Request a new recovery link!");
                 return RedirectToAction("LogIn");
             }
 
-            string[] hashSalt = HashPassword(newPasswordData.Password);
+            string[] hashSalt = Encryptor.HashPassword(newPasswordData.Password);
+            Console.WriteLine(newPasswordData.Password);
+            Console.WriteLine(hashSalt[0] + " " + hashSalt[1]);
 
 
             Dictionary<string, KeyValuePair<object, Type>> edit = new Dictionary<string, KeyValuePair<object, Type>>();
@@ -178,13 +185,14 @@ namespace WebApplication.Controllers
 
             if (result.IsError)
             {
-                _flasher.Flash(Types.Danger, "Something went wrong during password recovery process! Request a new recovery link!");
+                _flasher.Flash(Types.Danger,
+                    "Something went wrong during password recovery process! Request a new recovery link!");
             }
             else
             {
                 _flasher.Flash(Types.Success, "Your password has been changed successfully!");
             }
-            
+
             return RedirectToAction("LogIn");
         }
 
@@ -201,8 +209,6 @@ namespace WebApplication.Controllers
             UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
 
             Messenger result = await userDbAccess.Get(name: userLoginData.Name);
-
-            Console.WriteLine(result.Message);
 
             // If there is no record with this name
             if (result.IsError)
@@ -272,10 +278,10 @@ namespace WebApplication.Controllers
             parameters["phone"] = userRegisterData.PhoneNumber;
             parameters["role"] = userRegisterData.Role;
 
-            parameters["key"] = GenerateRandomCryptographicKey(32);
+            parameters["key"] = Encryptor.GenerateRandomKey(16);
 
 
-            string[] hashSalt = HashPassword(userRegisterData.Password);
+            string[] hashSalt = Encryptor.HashPassword(userRegisterData.Password);
 
             parameters["hash"] = hashSalt[0];
             parameters["salt"] = hashSalt[1];
@@ -291,20 +297,11 @@ namespace WebApplication.Controllers
             {
                 User newUser = result.GetData<User>();
 
-
                 _mailer.ConfirmEmail(newUser.Email, newUser.ConfirmationToken);
 
                 _flasher.Flash(Types.Success, result.Message);
                 return RedirectToAction("LogIn");
             }
-        }
-
-        public string GenerateRandomCryptographicKey(int keyLength)
-        {
-            RNGCryptoServiceProvider rngCryptoServiceProvider = new RNGCryptoServiceProvider();
-            byte[] randomBytes = new byte[keyLength];
-            rngCryptoServiceProvider.GetBytes(randomBytes);
-            return Convert.ToBase64String(randomBytes);
         }
 
         [HttpPost, ActionName("Delete")]
@@ -317,44 +314,7 @@ namespace WebApplication.Controllers
 
         private bool PasswordIsValid(string enteredPassword, string storedSalt, string storedHash)
         {
-            return storedHash == HashPassword(enteredPassword, storedSalt)[0];
-        }
-
-        private string Hash(string value)
-        {
-            HashAlgorithm hashAlgorithm = new SHA256CryptoServiceProvider();
-            byte[] bhash = hashAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(value));
-            return Convert.ToBase64String(bhash);
-        }
-
-
-        private static string[] HashPassword(string password, string salt = null)
-        {
-            string[] hashSalt = new string[2];
-
-            string passwordSalt = "";
-
-            RNGCryptoServiceProvider rngCryptoServiceProvider = new RNGCryptoServiceProvider();
-            if (salt == null)
-            {
-                byte[] buff = new byte[12];
-                rngCryptoServiceProvider.GetBytes(buff);
-                passwordSalt = Convert.ToBase64String(buff);
-                hashSalt[1] = passwordSalt;
-            }
-            else
-            {
-                passwordSalt = salt;
-            }
-
-
-            string passwordWithSalt = password + passwordSalt;
-
-            HashAlgorithm hashAlgorithm = new SHA256CryptoServiceProvider();
-            byte[] bhash = hashAlgorithm.ComputeHash(Encoding.UTF8.GetBytes(passwordWithSalt));
-            string passwordHashed = Convert.ToBase64String(bhash);
-            hashSalt[0] = passwordHashed;
-            return hashSalt;
+            return storedHash == Encryptor.HashPassword(enteredPassword, storedSalt)[0];
         }
     }
 }

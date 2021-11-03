@@ -91,7 +91,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
                 mySqlCommand.Parameters.AddWithValue("@ID", id);
                 mySqlCommand.Parameters.AddWithValue("@TOKEN", parameters["token"].ToString());
                 mySqlCommand.Parameters.AddWithValue("@CREATED", now);
-                mySqlCommand.Parameters.AddWithValue("@EXPIRES", now.AddMinutes(3));
+                mySqlCommand.Parameters.AddWithValue("@EXPIRES", now.AddMinutes(30));
                 mySqlCommand.Parameters.AddWithValue("@USERNAME", parameters["user_name"].ToString());
                 MySqlDataReader reader = await mySqlCommand.ExecuteReaderAsync();
 

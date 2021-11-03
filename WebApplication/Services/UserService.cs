@@ -9,17 +9,17 @@ namespace WebApplication.Services
 {
     public static class UserService
     {
-        private static string currentToken;
+        private static string _currentToken;
 
         public static void Authenticate(IConfiguration configuration, ITokenService tokenService, HttpContext context,
             User dbUser)
         {
-            currentToken = tokenService.BuildToken(configuration["JWT:Key"],
+            _currentToken = tokenService.BuildToken(configuration["JWT:Key"],
                 configuration["JWT:Issuer"], dbUser);
 
-            if (currentToken != null)
+            if (_currentToken != null)
             {
-                context.Session.SetString("Token", currentToken);
+                context.Session.SetString("Token", _currentToken);
             }
         }
 
@@ -33,32 +33,32 @@ namespace WebApplication.Services
 
         public static string GetName(ITokenService tokenService)
         {
-            return tokenService.DecodeToken(currentToken)?.Claims.FirstOrDefault(cl => cl is {Type: ClaimTypes.Name})
+            return tokenService.DecodeToken(_currentToken)?.Claims.FirstOrDefault(cl => cl is {Type: ClaimTypes.Name})
                 ?.Value;
         }
 
         public static string GetRole(ITokenService tokenService)
         {
-            return tokenService.DecodeToken(currentToken).Claims.FirstOrDefault(cl => cl is {Type: ClaimTypes.Role})
+            return tokenService.DecodeToken(_currentToken).Claims.FirstOrDefault(cl => cl is {Type: ClaimTypes.Role})
                 ?.Value;
         }
 
         public static string GetPhone(ITokenService tokenService)
         {
-            return tokenService.DecodeToken(currentToken).Claims
+            return tokenService.DecodeToken(_currentToken).Claims
                 .FirstOrDefault(cl => cl is {Type: ClaimTypes.HomePhone})
                 ?.Value;
         }
 
         public static string GetEmail(ITokenService tokenService)
         {
-            return tokenService.DecodeToken(currentToken).Claims.FirstOrDefault(cl => cl is {Type: ClaimTypes.Email})
+            return tokenService.DecodeToken(_currentToken).Claims.FirstOrDefault(cl => cl is {Type: ClaimTypes.Email})
                 ?.Value;
         }
 
         public static string GetId(ITokenService tokenService)
         {
-            return tokenService.DecodeToken(currentToken).Claims
+            return tokenService.DecodeToken(_currentToken).Claims
                 .FirstOrDefault(cl => cl is {Type: ClaimTypes.NameIdentifier})
                 ?.Value;
         }
