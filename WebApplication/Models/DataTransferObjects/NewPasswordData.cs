@@ -8,6 +8,9 @@ namespace WebApplication.Models.DataTransferObjects
         [MaxLength(32)]
         [MinLength(8)]
         public string Password { get; set; }
+        
+        [Required]
+        public string Username { get; set; }
 
         [Required]
         [MaxLength(32)]

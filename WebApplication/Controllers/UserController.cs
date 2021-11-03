@@ -86,20 +86,20 @@ namespace WebApplication.Controllers
             }
 
 
-            _mailer.ForgotPassWordEmail(dbUser.Email, passwordRecoverytoken);
+            _mailer.ForgotPassWordEmail(dbUser.Email, passwordRecoverytoken, dbUser.Name);
             _flasher.Flash(Types.Success, result.Message);
             return RedirectToAction("LogIn");
         }
 
-        // [HttpPost]
-        [Route("/checkValidRecoveryToken")]
-        public async Task<IActionResult> CheckValidRecoveryToken([FromQuery] string token)
+        [Route("/passwordRecovery")]
+        public async Task<IActionResult> PasswordRecovery([FromQuery] string token, [FromQuery] string userName)
         {
-            if (string.IsNullOrEmpty(token))
+            if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(userName))
             {
                 _flasher.Flash(Types.Danger, "You are not authorized for this action!");
                 return RedirectToAction("LogIn");
             }
+
 
             PasswordRecoveryDbAccess passwordRecoveryDbAccess = new PasswordRecoveryDbAccess(_mySqlContext);
             Messenger result = await passwordRecoveryDbAccess.Get(id: token);
@@ -127,42 +127,15 @@ namespace WebApplication.Controllers
                 return RedirectToAction("LogIn");
             }
 
-            return RedirectToAction("PasswordRecovery", new {userName = passwordRecoveryEntry.Username});
-        }
-
-
-        [Route("/passwordRecovery")]
-        public async Task<IActionResult> PasswordRecovery([FromQuery] string userName)
-        {
-            RequestHeaders headers = HttpContext.Request.GetTypedHeaders();
-            string referer = headers.Referer?.AbsolutePath;
-            Console.WriteLine($"Referer is {referer}");
-
-            if (!string.IsNullOrEmpty(referer))
-            {
-                if (string.IsNullOrEmpty(userName) || referer != "/checkValidRecoveryToken")
-                {
-                    _flasher.Flash(Types.Danger, "You are not authorized for this action!");
-                    return RedirectToAction("LogIn");
-                }
-            }
-            else
-            {
-                if (string.IsNullOrEmpty(userName))
-                {
-                    _flasher.Flash(Types.Danger, "You are not authorized for this action!");
-                    return RedirectToAction("LogIn");
-                }
-            }
-
-
+            ViewBag.username = userName;
             return View();
         }
 
         [HttpPost]
         [Route("/passwordRecovery")]
         public async Task<IActionResult> PasswordRecovery(
-            [Bind("Password,ConfirmPassword")] NewPasswordData newPasswordData)
+            [Bind("Password,ConfirmPassword,Username")]
+            NewPasswordData newPasswordData)
         {
             if (newPasswordData.Password != newPasswordData.ConfirmPassword)
             {
@@ -170,7 +143,6 @@ namespace WebApplication.Controllers
                 return RedirectToAction("PasswordRecovery");
             }
 
-            string userName = HttpContext.Session.GetString("Recover");
             HttpContext.Session.Remove("Recover");
 
             string[] hashSalt = HashPassword(newPasswordData.Password);
@@ -183,7 +155,7 @@ namespace WebApplication.Controllers
             edit["user_hash"] = new KeyValuePair<object, Type>(new string(hashSalt[0]), typeof(string));
             edit["user_salt"] = new KeyValuePair<object, Type>(new string(hashSalt[1]), typeof(string));
 
-            where["user_name"] = new KeyValuePair<object, Type>(new string(userName), typeof(string));
+            where["user_name"] = new KeyValuePair<object, Type>(new string(newPasswordData.Username), typeof(string));
 
             Messenger result = await userDbAccess.Edit(edit, where);
 
@@ -194,7 +166,7 @@ namespace WebApplication.Controllers
             else
             {
                 PasswordRecoveryDbAccess passwordRecoveryDbAccess = new PasswordRecoveryDbAccess(_mySqlContext);
-                await passwordRecoveryDbAccess.Remove(userName);
+                await passwordRecoveryDbAccess.Remove(newPasswordData.Username);
                 _flasher.Flash(Types.Success, "Your password has been changed successfully!");
             }
 

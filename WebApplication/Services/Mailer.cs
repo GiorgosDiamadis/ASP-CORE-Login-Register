@@ -7,7 +7,7 @@ namespace WebApplication.Services
 {
     public class Mailer:IMailer
     {
-        public void ForgotPassWordEmail(string email,string token)
+        public void ForgotPassWordEmail(string email,string token,string userName)
         {
             RestClient client = new RestClient();
             client.BaseUrl = new Uri("https://api.eu.mailgun.net/v3");
@@ -27,6 +27,7 @@ namespace WebApplication.Services
             // token = token.Replace("&", "%2B");
             // token = token.Replace("?", "%2B");
             request.AddParameter("v:token", token);
+            request.AddParameter("v:userName", userName);
             request.Method = Method.POST;
             client.Execute(request);
         }

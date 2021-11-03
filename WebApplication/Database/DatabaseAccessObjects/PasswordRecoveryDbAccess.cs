@@ -54,7 +54,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
                     connection);
 
             mySqlCommand.Parameters.AddWithValue("@ID", userName);
-            
+
             try
             {
                 await mySqlCommand.ExecuteReaderAsync();
@@ -67,7 +67,6 @@ namespace WebApplication.Database.DatabaseAccessObjects
                 await connection.CloseAsync();
                 return new Messenger("", true);
             }
-            
         }
 
         public async Task<Messenger> Insert(Dictionary<string, object> parameters)
@@ -82,23 +81,23 @@ namespace WebApplication.Database.DatabaseAccessObjects
             {
                 MySqlCommand mySqlCommand =
                     new MySqlCommand(
-                        @"insert into password_recoveries(id,token,date_created,expires_in,user_name) values(@ID,@TOKEN,@CREATED,@EXPIRES,@USERNAME)",
+                        @"insert into password_recoveries(id,token,date_created,expires_in,user_name) values(@ID,@TOKEN,@USED,@CREATED,@EXPIRES,@USERNAME)",
                         connection);
 
-                
+
                 DateTime now = DateTime.Now;
 
-                
+
                 mySqlCommand.Parameters.AddWithValue("@ID", id);
                 mySqlCommand.Parameters.AddWithValue("@TOKEN", parameters["token"].ToString());
                 mySqlCommand.Parameters.AddWithValue("@CREATED", now);
-                mySqlCommand.Parameters.AddWithValue("@EXPIRES", now.AddMinutes(30));
+                mySqlCommand.Parameters.AddWithValue("@EXPIRES", now.AddMinutes(3));
                 mySqlCommand.Parameters.AddWithValue("@USERNAME", parameters["user_name"].ToString());
                 MySqlDataReader reader = await mySqlCommand.ExecuteReaderAsync();
 
                 if (reader.RecordsAffected > 0)
                 {
-                    result = new Messenger("We have sent you a password recovery link to your email.",
+                    result = new Messenger("We have sent you a password recovery link to your email. This link will expire in 3 minutes!",
                         false);
                 }
                 else
