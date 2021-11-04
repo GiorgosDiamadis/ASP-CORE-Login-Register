@@ -25,7 +25,6 @@
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/obj/Debug/net5.0/WebApplication.RazorCoreGenerate.cache
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/obj/Debug/net5.0/Razor/Views/Home/Index.cshtml.g.cs
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/obj/Debug/net5.0/Razor/Views/Home/Privacy.cshtml.g.cs
-/home/giorgos/Desktop/Projects/WebApplication/WebApplication/obj/Debug/net5.0/Razor/Views/Shared/Error.cshtml.g.cs
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/obj/Debug/net5.0/Razor/Views/Shared/_Layout.cshtml.g.cs
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/obj/Debug/net5.0/Razor/Views/Shared/_ValidationScriptsPartial.cshtml.g.cs
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/obj/Debug/net5.0/Razor/Views/_ViewImports.cshtml.g.cs
@@ -180,3 +179,5 @@
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/bin/Debug/net5.0/Newtonsoft.Json.Bson.dll
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/obj/Debug/net5.0/Razor/Views/User/ForgotPassword.cshtml.g.cs
 /home/giorgos/Desktop/Projects/WebApplication/WebApplication/obj/Debug/net5.0/Razor/Views/User/PasswordRecovery.cshtml.g.cs
+/home/giorgos/Desktop/Projects/WebApplication/WebApplication/obj/Debug/net5.0/Razor/Views/Error/PageNotFound.cshtml.g.cs
+/home/giorgos/Desktop/Projects/WebApplication/WebApplication/obj/Debug/net5.0/Razor/Views/Error/BadRequestPage.cshtml.g.cs

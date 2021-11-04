@@ -6,9 +6,8 @@ using WebApplication.Models.DataTransferObjects;
 
 namespace WebApplication.Database.DatabaseAccessObjects.Interfaces
 {
-    public interface IDatabaseAccessObject<T> where T : DataTransferObjectBase
+    public interface IDatabaseAccessObject
     {
-        IEnumerable<T> GetAll(Predicate<T> condition = null);
         void CreateTableIfNotExists();
         Task<Messenger> Remove(string id);
         Task<Messenger> Insert(Dictionary<string,object> parameters);

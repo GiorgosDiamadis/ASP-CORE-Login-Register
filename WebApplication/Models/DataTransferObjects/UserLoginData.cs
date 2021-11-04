@@ -4,11 +4,10 @@ namespace WebApplication.Models.DataTransferObjects
 {
     public class UserLoginData : DataTransferObjectBase
     {
-        [Required] public string Name { get; set; }
+        [Required(ErrorMessage = "Username is empty!")]
+        public string Name { get; set; }
 
-        [Required]
-        [MinLength(8)]
-        [MaxLength(32)]
+        [Required(ErrorMessage = "Password is empty!")]
         public string Password { get; set; }
     }
 }

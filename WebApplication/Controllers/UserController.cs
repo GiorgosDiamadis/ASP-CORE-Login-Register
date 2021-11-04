@@ -1,14 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading.Tasks;
 using Core.Flash;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Headers;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Configuration;
 using WebApplication.Database;
 using WebApplication.Database.DatabaseAccessObjects;
@@ -96,7 +90,7 @@ namespace WebApplication.Controllers
         {
             if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(userName))
             {
-                _flasher.Flash(Types.Danger, "You are not authorized for this action!");
+                _flasher.Flash(Types.Danger, "Something went wrong during the password recovery process!");
                 return RedirectToAction("LogIn");
             }
 
@@ -253,10 +247,10 @@ namespace WebApplication.Controllers
         [Route("/confirmEmail")]
         public async Task<IActionResult> ConfirmEmail([FromQuery] string token)
         {
-            Console.WriteLine(token);
+            string tokenDecrypt = Encryptor.Decrypt(token);
             UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
-            Messenger messenger = await userDbAccess.ConfirmEmail(token);
-            Console.WriteLine(token);
+            Messenger messenger = await userDbAccess.ConfirmEmail(tokenDecrypt);
+
 
             if (messenger.IsError)
                 _flasher.Flash(Types.Danger, messenger.Message, true);
@@ -293,15 +287,14 @@ namespace WebApplication.Controllers
                 _flasher.Flash(Types.Danger, result.Message);
                 return RedirectToAction("Register");
             }
-            else
-            {
-                User newUser = result.GetData<User>();
 
-                _mailer.ConfirmEmail(newUser.Email, newUser.ConfirmationToken);
+            User newUser = result.GetData<User>();
 
-                _flasher.Flash(Types.Success, result.Message);
-                return RedirectToAction("LogIn");
-            }
+
+            _mailer.ConfirmEmail(newUser.Email, Encryptor.Encrypt(newUser.ConfirmationToken));
+
+            _flasher.Flash(Types.Success, result.Message);
+            return RedirectToAction("LogIn");
         }
 
         [HttpPost, ActionName("Delete")]

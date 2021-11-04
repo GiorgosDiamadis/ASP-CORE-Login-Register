@@ -9,15 +9,10 @@ using WebApplication.Models.Interfaces;
 
 namespace WebApplication.Database.DatabaseAccessObjects
 {
-    public class PasswordRecoveryDbAccess : IDatabaseAccessObject<DataTransferObjectBase>
+    public class PasswordRecoveryDbAccess : IDatabaseAccessObject
     {
         private readonly MySqlContext _mySqlContext;
-        private IDatabaseAccessObject<DataTransferObjectBase> _databaseAccessObjectImplementation;
 
-        public IEnumerable<DataTransferObjectBase> GetAll(Predicate<DataTransferObjectBase> condition = null)
-        {
-            return _databaseAccessObjectImplementation.GetAll(condition);
-        }
 
         public PasswordRecoveryDbAccess(MySqlContext mySqlContext)
         {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.CodeAnalysis.Emit;
 using MySqlConnector;
 using WebApplication.Database.DatabaseAccessObjects.Interfaces;
 using WebApplication.Models;
@@ -12,18 +13,13 @@ using WebApplication.Services.Interfaces;
 
 namespace WebApplication.Database.DatabaseAccessObjects
 {
-    public class UserDbAccess : IDatabaseAccessObject<DataTransferObjectBase>
+    public class UserDbAccess : IDatabaseAccessObject
     {
         private readonly MySqlContext _mySqlContext;
 
         public UserDbAccess(MySqlContext mySqlContext)
         {
             this._mySqlContext = mySqlContext;
-        }
-
-        public IEnumerable<DataTransferObjectBase> GetAll(Predicate<DataTransferObjectBase> condition = null)
-        {
-            return null;
         }
 
         public async void CreateTableIfNotExists()
@@ -55,7 +51,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
         {
             string userId = Guid.NewGuid().ToString();
 
-            string emailConfirmationToken = Guid.NewGuid().ToString();
+            string emailConfirmationToken = Encryptor.GenerateRandomKey(32);
             MySqlConnection connection = _mySqlContext.GetConnection();
             await connection.OpenAsync();
             MySqlCommand mySqlCommand =
@@ -86,7 +82,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
 
             mySqlCommand.Parameters.AddWithValue("@ID", userId);
             mySqlCommand.Parameters.AddWithValue("@HASVALIDATED", 0);
-            mySqlCommand.Parameters.AddWithValue("@CONFIRMATIONTOKEN", emailConfirmationToken);
+            mySqlCommand.Parameters.AddWithValue("@CONFIRMATIONTOKEN", Encryptor.Hash(emailConfirmationToken));
             mySqlCommand.Parameters.AddWithValue("@NAME", parameters["name"].ToString());
             mySqlCommand.Parameters.AddWithValue("@ROLE", (int) parameters["role"]);
             mySqlCommand.Parameters.AddWithValue("@PHONE", parameters["phone"].ToString());
@@ -94,7 +90,6 @@ namespace WebApplication.Database.DatabaseAccessObjects
             mySqlCommand.Parameters.AddWithValue("@SALT", parameters["salt"].ToString());
             mySqlCommand.Parameters.AddWithValue("@HASH", parameters["hash"].ToString());
             mySqlCommand.Parameters.AddWithValue("@KEY", Encryptor.Hash(parameters["key"].ToString()));
-
 
             try
             {
@@ -131,7 +126,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
                     new MySqlCommand(
                         @"update users set has_validated=1 where email_confirmation_token=@TOKEN",
                         connection);
-                mySqlCommand.Parameters.AddWithValue("@TOKEN", token);
+                mySqlCommand.Parameters.AddWithValue("@TOKEN", Encryptor.Hash(token));
                 MySqlDataReader reader = await mySqlCommand.ExecuteReaderAsync();
                 await connection.CloseAsync();
                 if (reader.RecordsAffected != 0)
