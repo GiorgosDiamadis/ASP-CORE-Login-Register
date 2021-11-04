@@ -1,13 +1,8 @@
-﻿using System;
-using System.Diagnostics;
-using Core.Flash;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Headers;
+﻿using Core.Flash;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using WebApplication.Filters;
-using WebApplication.Models;
 using WebApplication.Services.Interfaces;
 
 namespace WebApplication.Controllers

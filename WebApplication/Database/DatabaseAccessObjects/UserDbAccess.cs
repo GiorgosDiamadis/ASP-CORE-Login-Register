@@ -208,17 +208,10 @@ namespace WebApplication.Database.DatabaseAccessObjects
             Dictionary<string, KeyValuePair<object, Type>> where)
         {
             string query = "update users set ";
+            int count = 0;
             foreach (var kv in parameters)
             {
-                query += kv.Key + "=";
-                if (kv.Value.Value == typeof(string))
-                {
-                    query += $"'{kv.Value.Key}',";
-                }
-                else
-                {
-                    query += (int) kv.Value.Key + ",";
-                }
+                query += $"{kv.Key}=@var{count++},";
             }
 
             query = query.Remove(query.Length - 1, 1);
@@ -226,22 +219,30 @@ namespace WebApplication.Database.DatabaseAccessObjects
 
             foreach (var kv in where)
             {
-                query += kv.Key + "=";
-                if (kv.Value.Value == typeof(string))
-                {
-                    query += $"'{kv.Value.Key}' and ";
-                }
-                else
-                {
-                    query += (int) kv.Value.Key + " and ";
-                }
+                query += $"{kv.Key}=@var{count++} and ";
             }
+
 
             query = query.Remove(query.Length - 5, 4);
 
             MySqlConnection connection = _mySqlContext.GetConnection();
             await connection.OpenAsync();
             MySqlCommand mySqlCommand = new MySqlCommand(query, connection);
+            Console.WriteLine(query);
+
+            count = 0;
+            foreach (var kv in parameters)
+            {
+                mySqlCommand.Parameters.AddWithValue($"var{count++}",
+                    kv.Value.Value == typeof(string) ? kv.Value.Key.ToString() : (int) kv.Value.Key);
+            }
+
+
+            foreach (var kv in where)
+            {
+                mySqlCommand.Parameters.AddWithValue($"var{count++}",
+                    kv.Value.Value == typeof(string) ? kv.Value.Key.ToString() : (int) kv.Value.Key);
+            }
 
 
             try
@@ -253,6 +254,7 @@ namespace WebApplication.Database.DatabaseAccessObjects
             }
             catch (Exception e)
             {
+                Console.WriteLine(e.Message);
                 await connection.CloseAsync();
 
                 return new Messenger("", true);

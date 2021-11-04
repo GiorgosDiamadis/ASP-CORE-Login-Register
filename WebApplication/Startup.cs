@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -72,6 +73,7 @@ namespace WebApplication
             services.AddScoped<UserAuthorizationFilter>();
 
             services.AddControllersWithViews();
+
         }
 
         private static void CreateAllTables(MySqlContext mySqlContext)
