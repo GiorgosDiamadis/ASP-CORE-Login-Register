@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Http;
@@ -19,7 +20,10 @@ namespace WebApplication.Services
 
             if (_currentToken != null)
             {
-                context.Session.SetString("Token", _currentToken);
+                context.Response.Cookies.Append("jwtToken", Encryptor.Encrypt(_currentToken), new CookieOptions()
+                {
+                    HttpOnly = true, SameSite = SameSiteMode.Strict
+                });
             }
         }
 
@@ -27,7 +31,7 @@ namespace WebApplication.Services
         {
             if (context != null)
             {
-                context.Session.Remove("Token");
+                context.Response.Cookies.Delete("jwtToken");
             }
         }
 

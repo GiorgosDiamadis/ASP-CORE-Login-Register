@@ -20,7 +20,7 @@ namespace WebApplication.Filters
 
         public void OnAuthorization(AuthorizationFilterContext context)
         {
-            string token = context.HttpContext.Session.GetString("Token");
+            string token = context.HttpContext.Request.Cookies["jwtToken"];
             if (string.IsNullOrEmpty(token))
             {
                 RedirectToLoginPage(context);
@@ -28,23 +28,10 @@ namespace WebApplication.Filters
             }
 
             if (!_tokenService.ValidateToken(_configuration["JWT:Key"], _configuration["JWT:Issuer"],
-                _configuration["JWT:Audience"], token))
+                _configuration["JWT:Audience"], Encryptor.Decrypt(token)))
             {
                 RedirectToLoginPage(context);
-                return;
             }
-
-            string id = context.HttpContext.Request.Query["id"];
-            if (!string.IsNullOrEmpty(id))
-            {
-                if (id != UserService.GetId(_tokenService))
-                {
-                    // Diplay page for not authorized
-                    Console.WriteLine("Not authorized");
-                }
-            }
-
-            // Do the same
         }
 
         private static void RedirectToLoginPage(AuthorizationFilterContext context)

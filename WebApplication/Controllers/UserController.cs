@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Core.Flash;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using WebApplication.Database;
@@ -35,6 +36,7 @@ namespace WebApplication.Controllers
 
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         [Route("/logout")]
         public async Task<IActionResult> LogOut()
         {
@@ -50,6 +52,7 @@ namespace WebApplication.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         [Route("/forgotPassword")]
         public async Task<IActionResult> ForgotPassword([Bind("Name")] ForgotPasswordData forgotPasswordData)
         {
@@ -80,14 +83,16 @@ namespace WebApplication.Controllers
 
             string tokenEncrypted = Encryptor.Encrypt(passwordRecoverytoken);
             string nameEcrypted = Encryptor.Encrypt(dbUser.Name);
-            _mailer.ForgotPassWordEmail(dbUser.Email, tokenEncrypted, nameEcrypted);
+            HttpContext.Session.SetString("Recover", nameEcrypted);
+            _mailer.ForgotPassWordEmail(dbUser.Email, tokenEncrypted);
             _flasher.Flash(Types.Success, result.Message);
             return RedirectToAction("LogIn");
         }
 
         [Route("/passwordRecovery")]
-        public async Task<IActionResult> PasswordRecovery([FromQuery] string token, [FromQuery] string userName)
+        public async Task<IActionResult> PasswordRecovery([FromQuery] string token)
         {
+            string userName = HttpContext.Session.GetString("Recover");
             if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(userName))
             {
                 _flasher.Flash(Types.Danger, "Something went wrong during the password recovery process!");
@@ -123,11 +128,20 @@ namespace WebApplication.Controllers
                 return RedirectToAction("LogIn");
             }
 
+            User dbUser = result.GetData<User>();
+
+            if (passwordRecoveryEntry.Username == dbUser.Name)
+            {
+                _flasher.Flash(Types.Danger, "Something went wrong during password recovery process!");
+                return RedirectToAction("LogIn");
+            }
+
             ViewBag.username = userName;
             return View();
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         [Route("/passwordRecovery")]
         public async Task<IActionResult> PasswordRecovery(
             [Bind("Password,ConfirmPassword,Username,Key")]
@@ -144,6 +158,7 @@ namespace WebApplication.Controllers
             UserDbAccess userDbAccess = new UserDbAccess(_mySqlContext);
             PasswordRecoveryDbAccess passwordRecoveryDbAccess = new PasswordRecoveryDbAccess(_mySqlContext);
             await passwordRecoveryDbAccess.Remove(newPasswordData.Username);
+            HttpContext.Session.Remove("Recover");
 
             // Retrieve user, check is key is correct
             Messenger messenger = await userDbAccess.Get(name: newPasswordData.Username);
@@ -197,6 +212,7 @@ namespace WebApplication.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         [Route("/login")]
         public async Task<IActionResult> LogIn([Bind("Name,Password")] UserLoginData userLoginData)
         {
@@ -260,6 +276,7 @@ namespace WebApplication.Controllers
         }
 
         [HttpPost]
+        [ValidateAntiForgeryToken]
         [Route("/register")]
         public async Task<IActionResult> Register(
             [Bind("PhoneNumber,Email,Role,Name,Password")]
